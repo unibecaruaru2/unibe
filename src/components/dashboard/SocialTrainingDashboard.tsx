@@ -23,7 +23,8 @@ import {
   updateAttendanceInSupabase, 
   updateCertificatePaymentInSupabase, 
   logWhatsAppSentInSupabase, 
-  createEnrollmentInSupabase 
+  createEnrollmentInSupabase,
+  deleteStudentFromSupabase
 } from '../../lib/supabase';
 
 export const SocialTrainingDashboard: React.FC = () => {
@@ -67,10 +68,9 @@ export const SocialTrainingDashboard: React.FC = () => {
     }
   };
 
-  // Data States (Operação 100% com Dados Reais do Supabase)
+  // Data States
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
-  const [dbSyncStatus, setDbSyncStatus] = useState<'synced' | 'connecting' | 'fallback'>('connecting');
   const [selectedSaturday, setSelectedSaturday] = useState<string>(() => {
     try {
       const todayIso = new Date().toISOString().split('T')[0];
@@ -82,25 +82,23 @@ export const SocialTrainingDashboard: React.FC = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch real data from Supabase on mount
+  // Fetch real data on mount
   useEffect(() => {
     let isMounted = true;
-    async function loadFromSupabase() {
+    async function loadData() {
       try {
         const remoteStudents = await fetchStudentsFromSupabase();
         if (isMounted) {
           setStudents(remoteStudents || []);
-          setDbSyncStatus('synced');
         }
       } catch (err) {
-        console.warn('Erro ao carregar dados do Supabase:', err);
-        if (isMounted) setDbSyncStatus('fallback');
+        console.warn('Erro ao carregar dados:', err);
       } finally {
         if (isMounted) setIsLoadingDb(false);
       }
     }
 
-    loadFromSupabase();
+    loadData();
     return () => { isMounted = false; };
   }, []);
 
@@ -111,7 +109,7 @@ export const SocialTrainingDashboard: React.FC = () => {
   const [selectedStudentForCert, setSelectedStudentForCert] = useState<Student | null>(null);
   const [isCertOpen, setIsCertOpen] = useState(false);
 
-  // Available Saturdays calculated dynamically from real student cycles or current calendar
+  // Available Saturdays calculated dynamically
   const availableSaturdays = useMemo(() => {
     const set = new Set<string>();
     students.forEach(s => s.saturdays.forEach(d => { if (d) set.add(d); }));
@@ -134,7 +132,7 @@ export const SocialTrainingDashboard: React.FC = () => {
     }
   }, [availableSaturdays, selectedSaturday]);
 
-  // Recalculate KPIs dynamically from 100% real data
+  // Recalculate KPIs dynamically
   const dynamicKpis: DashboardKpis = useMemo(() => {
     const totalStudents = students.length;
     const morningCount = students.filter(s => s.shift === 'manha').length;
@@ -148,6 +146,7 @@ export const SocialTrainingDashboard: React.FC = () => {
         if (a.status === 'presente' || a.status === 'falta') totalRecorded++;
       });
     });
+
     const attendancePercentage = totalRecorded > 0 ? Math.round((totalPresent / totalRecorded) * 100) : 0;
 
     const confirmedCount = students.filter(s => s.whatsappStatus === 'confirmado').length;
@@ -179,13 +178,13 @@ export const SocialTrainingDashboard: React.FC = () => {
       },
       completedCertificates: {
         totalReadyOrIssued: eligibleForCert,
-        issuedThisMonth: students.filter(s => s.certificate.status === 'pago_liberado').length,
+        issuedThisMonth: students.filter(s => s.certificate?.feePaid).length,
         trendPercentage: 0
       }
     };
   }, [students]);
 
-  // Attendance Toggle with Strict Certification Evaluation + Supabase sync
+  // Attendance Toggle
   const handleToggleAttendance = (studentId: string, lessonNumber: 1 | 2 | 3 | 4) => {
     let nextAttendanceStatus: AttendanceStatus = 'presente';
 
@@ -205,9 +204,9 @@ export const SocialTrainingDashboard: React.FC = () => {
           return { ...rec, status: nextStatus };
         });
 
-        // Evaluate eligibility strictly using domain rule
+        // Strict eligibility check
         const attendanceList = updatedAttendance.map(a => a.status.toUpperCase() as 'PRESENTE' | 'FALTA' | 'PENDENTE');
-        const evalResult = evaluateCertificateEligibility(attendanceList, student.certificate.feePaid);
+        const evalResult = evaluateCertificateEligibility(attendanceList, student.certificate?.feePaid || false);
 
         let flagStatus: 'nao_elegivel' | 'em_andamento' | 'pendente_pagamento' | 'pago_liberado';
         if (evalResult.status === 'NAO_ELEGIVEL') {
@@ -227,27 +226,25 @@ export const SocialTrainingDashboard: React.FC = () => {
             ...student.certificate,
             status: flagStatus,
             code: flagStatus === 'pago_liberado' 
-              ? (student.certificate.code || `UNIBE-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`) 
+              ? (student.certificate?.code || `UNIBE-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`) 
               : undefined
           }
         };
       })
     );
 
-    // Sync to Supabase in background
-    updateAttendanceInSupabase(studentId, lessonNumber, nextAttendanceStatus).catch(err => {
-      console.warn('Sync de presença falhou (Supabase):', err);
-    });
+    // Sync in background
+    updateAttendanceInSupabase(studentId, lessonNumber, nextAttendanceStatus).catch(console.warn);
   };
 
-  // Toggle or confirm payment for student certificate fee (Pure organizational toggle) + Supabase sync
+  // Toggle Fee Payment
   const handleToggleFeePayment = (studentId: string) => {
     let targetPaid = false;
 
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
-        const newPaid = !student.certificate.feePaid;
+        const newPaid = !student.certificate?.feePaid;
         targetPaid = newPaid;
         const presences = student.attendance.filter(a => a.status === 'presente').length;
         const isEligible = presences === 4;
@@ -259,26 +256,22 @@ export const SocialTrainingDashboard: React.FC = () => {
             feePaid: newPaid,
             status: isEligible 
               ? (newPaid ? 'pago_liberado' : 'pendente_pagamento')
-              : student.certificate.status,
+              : student.certificate?.status,
             issuedAt: newPaid ? new Date().toISOString().split('T')[0] : undefined,
-            code: newPaid ? (student.certificate.code || `UNIBE-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`) : undefined
+            code: newPaid ? (student.certificate?.code || `UNIBE-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`) : undefined
           }
         };
       })
     );
 
-    // Sync to Supabase in background
-    updateCertificatePaymentInSupabase(studentId, targetPaid).catch(err => {
-      console.warn('Sync de pagamento da taxa falhou (Supabase):', err);
-    });
+    updateCertificatePaymentInSupabase(studentId, targetPaid).catch(console.warn);
   };
 
-  // Handle WhatsApp Status Update + Supabase log
+  // Update WhatsApp Status
   const handleUpdateWhatsAppStatus = (studentId: string, status: WhatsAppContactStatusType) => {
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
-        // Sync to Supabase log
         logWhatsAppSentInSupabase(
           studentId,
           s.guardian?.phone || s.phone,
@@ -289,6 +282,16 @@ export const SocialTrainingDashboard: React.FC = () => {
         return { ...s, whatsappStatus: status };
       })
     );
+  };
+
+  // Delete Student Handler
+  const handleDeleteStudent = async (studentId: string) => {
+    setStudents((prev) => prev.filter((s) => s.id !== studentId));
+    try {
+      await deleteStudentFromSupabase(studentId);
+    } catch (err) {
+      console.warn('Erro ao excluir aluno do banco:', err);
+    }
   };
 
   // Open WhatsApp Modal
@@ -303,11 +306,11 @@ export const SocialTrainingDashboard: React.FC = () => {
     setIsCertOpen(true);
   };
 
-  // Handle New Student Enrollment + Supabase insertion
+  // Enroll Student Handler
   const handleEnrollStudent = async (newStudentData: Partial<Student>) => {
     const saturdays = newStudentData.saturdays || ['2026-10-24', '2026-10-31', '2026-11-07', '2026-11-14'];
-    
-    // Try to persist to Supabase
+    const isFeePaid = Boolean(newStudentData.certificate?.feePaid);
+
     try {
       const createdStudent = await createEnrollmentInSupabase({
         studentName: newStudentData.name || 'Novo Aluno',
@@ -316,7 +319,8 @@ export const SocialTrainingDashboard: React.FC = () => {
         guardianRelationship: newStudentData.guardian?.relationship || 'Mãe',
         shift: newStudentData.shift || 'manha',
         enrollmentDate: newStudentData.enrollmentDate || new Date().toISOString().split('T')[0],
-        saturdays
+        saturdays,
+        feePaid: isFeePaid
       });
 
       if (createdStudent) {
@@ -324,10 +328,10 @@ export const SocialTrainingDashboard: React.FC = () => {
         return;
       }
     } catch (err) {
-      console.warn('Erro ao salvar no Supabase, aplicando localmente:', err);
+      console.warn('Salvando localmente:', err);
     }
 
-    // Fallback local
+    // Local Fallback
     const newStudent: Student = {
       id: `std-${Date.now()}`,
       registrationNumber: `UNB-2026-00${students.length + 1}`,
@@ -340,9 +344,9 @@ export const SocialTrainingDashboard: React.FC = () => {
       cycleId: 'cycle-2026-out-manha',
       cycleName: 'Turma Outubro 2026 - Manhã',
       shift: newStudentData.shift || 'manha',
-      classroom: newStudentData.classroom || 'Lab 102',
+      classroom: 'Rua Silva Jardim, 99',
       currentLesson: 1,
-      enrollmentDate: newStudentData.enrollmentDate || '2026-10-21',
+      enrollmentDate: newStudentData.enrollmentDate || new Date().toISOString().split('T')[0],
       saturdays,
       attendance: newStudentData.attendance || saturdays.map((date, idx) => ({
         lessonNumber: (idx + 1) as 1 | 2 | 3 | 4,
@@ -353,9 +357,9 @@ export const SocialTrainingDashboard: React.FC = () => {
       certificate: {
         id: `cert-${Date.now()}`,
         studentId: '',
-        status: 'em_andamento',
+        status: isFeePaid ? 'pendente_pagamento' : 'em_andamento',
         feeAmount: 35.00,
-        feePaid: false
+        feePaid: isFeePaid
       },
       createdAt: new Date().toISOString()
     };
@@ -363,7 +367,7 @@ export const SocialTrainingDashboard: React.FC = () => {
     setStudents((prev) => [newStudent, ...prev]);
   };
 
-  // Render Active Route Component
+  // Render Route View
   const renderCurrentRouteView = () => {
     switch (currentRoute) {
       case 'dashboard':
@@ -374,6 +378,9 @@ export const SocialTrainingDashboard: React.FC = () => {
             onNavigate={setCurrentRoute}
             onOpenEnrollment={() => setIsEnrollmentOpen(true)}
             selectedSaturday={selectedSaturday}
+            onOpenWhatsApp={handleOpenWhatsApp}
+            onOpenCertificate={handleOpenCertificate}
+            onDeleteStudent={handleDeleteStudent}
           />
         );
 
@@ -387,6 +394,7 @@ export const SocialTrainingDashboard: React.FC = () => {
             onToggleAttendance={handleToggleAttendance}
             onOpenWhatsApp={handleOpenWhatsApp}
             onOpenCertificate={handleOpenCertificate}
+            onDeleteStudent={handleDeleteStudent}
           />
         );
 
@@ -397,6 +405,7 @@ export const SocialTrainingDashboard: React.FC = () => {
             onOpenEnrollment={() => setIsEnrollmentOpen(true)}
             onOpenWhatsApp={handleOpenWhatsApp}
             onOpenCertificate={handleOpenCertificate}
+            onDeleteStudent={handleDeleteStudent}
           />
         );
 
@@ -429,13 +438,16 @@ export const SocialTrainingDashboard: React.FC = () => {
             onNavigate={setCurrentRoute}
             onOpenEnrollment={() => setIsEnrollmentOpen(true)}
             selectedSaturday={selectedSaturday}
+            onOpenWhatsApp={handleOpenWhatsApp}
+            onOpenCertificate={handleOpenCertificate}
+            onDeleteStudent={handleDeleteStudent}
           />
         );
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#070D18] flex font-['Plus_Jakarta_Sans',sans-serif] text-slate-800 dark:text-slate-100 transition-colors duration-200">
       {/* Mobile/Tablet Backdrop Overlay */}
       {!sidebarCollapsed && (
         <div 
@@ -445,7 +457,7 @@ export const SocialTrainingDashboard: React.FC = () => {
         />
       )}
 
-      {/* 1. Left Sidebar Navigation (Deep Navy #0B192C) */}
+      {/* Left Sidebar Navigation */}
       <Sidebar 
         currentPath={currentRoute}
         onNavigate={handleNavigate}
@@ -455,7 +467,7 @@ export const SocialTrainingDashboard: React.FC = () => {
 
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* 2. Top Header with universal search & user profile */}
+        {/* Top Header */}
         <Header 
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -464,13 +476,13 @@ export const SocialTrainingDashboard: React.FC = () => {
           isSidebarCollapsed={sidebarCollapsed}
         />
 
-        {/* 3. Dedicated Route View (No clutter, single task focus) */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1">
+        {/* Dedicated Route View */}
+        <main className="p-3.5 sm:p-5 lg:p-6 flex-1">
           {renderCurrentRouteView()}
         </main>
       </div>
 
-      {/* WhatsApp Modal with Editable Pre-Filled Template */}
+      {/* WhatsApp Modal */}
       <WhatsAppModal 
         isOpen={isWhatsAppOpen}
         onClose={() => setIsWhatsAppOpen(false)}
@@ -479,14 +491,14 @@ export const SocialTrainingDashboard: React.FC = () => {
         selectedSaturdayDate={selectedSaturday}
       />
 
-      {/* Enrollment Modal with Live Calculation of the 4 Saturdays */}
+      {/* Enrollment Modal */}
       <EnrollmentModal 
         isOpen={isEnrollmentOpen}
         onClose={() => setIsEnrollmentOpen(false)}
         onEnrollStudent={handleEnrollStudent}
       />
 
-      {/* Certificate Modal with Diploma view, Authenticity Key and Payment Confirmation */}
+      {/* Certificate Modal */}
       <CertificateModal 
         isOpen={isCertOpen}
         onClose={() => setIsCertOpen(false)}

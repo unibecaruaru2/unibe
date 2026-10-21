@@ -240,6 +240,7 @@ export async function createEnrollmentInSupabase(data: {
   shift: 'manha' | 'tarde';
   enrollmentDate: string;
   saturdays: string[];
+  feePaid?: boolean;
 }): Promise<Student | null> {
   try {
     // 1. Cadastrar Guardian
@@ -272,7 +273,7 @@ export async function createEnrollmentInSupabase(data: {
         is_underage: true,
         guardian_id: guardianData.id,
         shift: data.shift,
-        classroom: data.shift === 'manha' ? 'Laboratório 102' : 'Auditório Darcy Ribeiro',
+        classroom: 'Rua Silva Jardim, 99',
         enrollment_date: data.enrollmentDate,
         avatar_url: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150`
       })
@@ -310,11 +311,12 @@ export async function createEnrollmentInSupabase(data: {
     await supabase.from('class_sessions').insert(sessions);
 
     // 5. Cadastrar Certificado Inicial
+    const isPaid = Boolean(data.feePaid);
     await supabase.from('certificate_records').insert({
       student_id: sId,
       status: 'em_andamento',
       fee_amount: 35.0,
-      fee_paid: false
+      fee_paid: isPaid
     });
 
     const newStudent: Student = {
@@ -334,7 +336,7 @@ export async function createEnrollmentInSupabase(data: {
       cycleId: cycleData?.id || 'cycle-new',
       cycleName: `Turma ${data.shift === 'manha' ? 'Manhã' : 'Tarde'}`,
       shift: data.shift,
-      classroom: data.shift === 'manha' ? 'Laboratório 102' : 'Auditório Darcy Ribeiro',
+      classroom: 'Rua Silva Jardim, 99',
       currentLesson: 1,
       enrollmentDate: data.enrollmentDate,
       saturdays: data.saturdays,
@@ -350,7 +352,7 @@ export async function createEnrollmentInSupabase(data: {
         studentId: sId,
         status: 'em_andamento',
         feeAmount: 35.0,
-        feePaid: false
+        feePaid: isPaid
       },
       avatarUrl: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150`,
       createdAt: new Date().toISOString()
@@ -360,5 +362,26 @@ export async function createEnrollmentInSupabase(data: {
   } catch (err) {
     console.error('Falha ao criar matrícula:', err);
     return null;
+  }
+}
+
+/**
+ * Exclui aluno e seus registros vinculados
+ */
+export async function deleteStudentFromSupabase(studentId: string): Promise<boolean> {
+  try {
+    await supabase.from('certificate_records').delete().eq('student_id', studentId);
+    await supabase.from('whatsapp_logs').delete().eq('student_id', studentId);
+    await supabase.from('class_sessions').delete().eq('student_id', studentId);
+    await supabase.from('training_cycles').delete().eq('student_id', studentId);
+    const { error } = await supabase.from('students').delete().eq('id', studentId);
+    if (error) {
+      console.warn('Erro ao excluir aluno do banco:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Falha na exclusão do aluno:', err);
+    return false;
   }
 }

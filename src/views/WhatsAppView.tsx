@@ -8,7 +8,11 @@ import {
   ExternalLink, 
   FileText,
   User,
-  Sparkles
+  Sparkles,
+  MapPin,
+  Shirt,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Student, WhatsAppContactStatusType } from '../types';
 import { whatsappTemplates } from '../data/mockData';
@@ -28,6 +32,7 @@ export const WhatsAppView: React.FC<WhatsAppViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'todos' | WhatsAppContactStatusType>('todos');
   const [search, setSearch] = useState('');
   const [selectedTemplateTab, setSelectedTemplateTab] = useState(whatsappTemplates[0].id);
+  const [copiedTemplate, setCopiedTemplate] = useState<string | null>(null);
 
   const filteredStudents = students.filter(s => {
     if (statusFilter !== 'todos' && s.whatsappStatus !== statusFilter) return false;
@@ -44,215 +49,193 @@ export const WhatsAppView: React.FC<WhatsAppViewProps> = ({
   const countSent = students.filter(s => s.whatsappStatus === 'mensagem_enviada').length;
   const countConfirmed = students.filter(s => s.whatsappStatus === 'confirmado').length;
 
+  const currentTemplate = whatsappTemplates.find(t => t.id === selectedTemplateTab) || whatsappTemplates[0];
+
+  const handleCopyTemplate = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedTemplate(id);
+    setTimeout(() => setCopiedTemplate(null), 2000);
+  };
+
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto animate-fadeIn">
+    <div className="space-y-4 max-w-[1400px] mx-auto animate-fadeIn">
       {/* Top Header */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-soft flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0E1726] rounded-xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Comunicação & Confirmações WhatsApp
+            <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+              Comunicação WhatsApp Oficial
             </h1>
-            <span className="text-xs font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
-              Disparo com Edição Prévia
+            <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40">
+              wa.me Oficial
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Controle de contato ativo com responsáveis e alunos via wa.me oficial com variáveis dinâmicas
-          </p>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <span className="flex items-center gap-1 font-medium">
+              <MapPin className="w-3.5 h-3.5 text-blue-500" />
+              <span>Rua Silva Jardim, 99</span>
+            </span>
+            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+            <span className="flex items-center gap-1 font-medium">
+              <Shirt className="w-3.5 h-3.5 text-rose-500" />
+              <span>Calça, sapato fechado e blusa vermelha ou branca</span>
+            </span>
+          </div>
         </div>
 
         {/* Status Counters */}
         <div className="flex items-center gap-2 text-xs">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-center">
-            <span className="block font-black text-slate-700">{countNotContacted}</span>
-            <span className="text-[11px] text-slate-400">Não Contatados</span>
+          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-center">
+            <span className="block font-black text-slate-700 dark:text-slate-200">{countNotContacted}</span>
+            <span className="text-[10px] text-slate-400">Pendentes</span>
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-center">
-            <span className="block font-black text-blue-700">{countSent}</span>
-            <span className="text-[11px] text-blue-500">Enviados</span>
+          <div className="bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/40 rounded-xl px-2.5 py-1.5 text-center">
+            <span className="block font-black text-blue-700 dark:text-blue-300">{countSent}</span>
+            <span className="text-[10px] text-blue-500 dark:text-blue-400">Enviados</span>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-center">
-            <span className="block font-black text-emerald-700">{countConfirmed}</span>
-            <span className="text-[11px] text-emerald-500">Confirmados</span>
+          <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/40 rounded-xl px-2.5 py-1.5 text-center">
+            <span className="block font-black text-emerald-700 dark:text-emerald-300">{countConfirmed}</span>
+            <span className="text-[10px] text-emerald-500 dark:text-emerald-400">Confirmados</span>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Contact List (70%) + Templates Viewer (30%) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Main Grid: Contact List + Templates Viewer */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
         {/* Left Column: Contact Queue */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-3">
           {/* Filter Bar */}
-          <div className="bg-white rounded-2xl p-3 border border-slate-200/90 shadow-soft flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold">
+          <div className="bg-white dark:bg-[#0E1726] rounded-xl p-3 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1 text-xs font-semibold">
               <button
                 onClick={() => setStatusFilter('todos')}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  statusFilter === 'todos' ? 'bg-[#0B192C] text-white' : 'text-slate-600 hover:bg-slate-100'
+                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                  statusFilter === 'todos' ? 'bg-slate-900 dark:bg-slate-800 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 Todos ({students.length})
               </button>
               <button
                 onClick={() => setStatusFilter('nao_contatado')}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  statusFilter === 'nao_contatado' ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                  statusFilter === 'nao_contatado' ? 'bg-slate-700 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                Não Contatados ({countNotContacted})
-              </button>
-              <button
-                onClick={() => setStatusFilter('mensagem_enviada')}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  statusFilter === 'mensagem_enviada' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Enviados ({countSent})
+                Pendentes ({countNotContacted})
               </button>
               <button
                 onClick={() => setStatusFilter('confirmado')}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  statusFilter === 'confirmado' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                  statusFilter === 'confirmado' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 Confirmados ({countConfirmed})
               </button>
             </div>
 
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+            <div className="relative flex-1 max-w-xs">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2 pointer-events-none" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome..."
-                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white w-44"
+                placeholder="Filtrar responsável ou aluno..."
+                className="w-full pl-8 pr-2.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-soft overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3.5 px-5">Aluno & Matrícula</th>
-                    <th className="py-3.5 px-4">Responsável & Telefone</th>
-                    <th className="py-3.5 px-4 text-center">Status Contato</th>
-                    <th className="py-3.5 px-5 text-right">Disparo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {filteredStudents.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-12 px-6 text-center">
-                        <div className="max-w-xs mx-auto space-y-2">
-                          <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
-                          <h4 className="font-bold text-slate-800 text-sm">Nenhum contato na fila</h4>
-                          <p className="text-xs text-slate-400">
-                            Cadastre alunos para gerenciar os disparos e confirmações do WhatsApp.
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredStudents.map((student) => {
-                    const phone = student.guardian ? student.guardian.phone : student.phone;
+          {/* Student Contact Cards */}
+          <div className="bg-white dark:bg-[#0E1726] rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden">
+            {filteredStudents.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
+                Nenhum contato encontrado.
+              </div>
+            ) : (
+              filteredStudents.map((student) => {
+                const targetPhone = student.guardian ? student.guardian.phone : student.phone;
+                const contactName = student.guardian ? `${student.guardian.name} (${student.guardian.relationship})` : student.name;
 
-                    return (
-                      <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-4 px-5">
-                          <span className="font-semibold text-slate-900 block">{student.name}</span>
-                          <span className="text-xs text-slate-400 font-mono">{student.registrationNumber}</span>
-                        </td>
-
-                        <td className="py-4 px-4 text-xs">
-                          <span className="font-medium text-slate-800 block">
-                            {student.guardian ? student.guardian.name : 'Próprio Aluno'}
+                return (
+                  <div key={student.id} className="p-3.5 flex flex-wrap items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-bold flex items-center justify-center text-xs border border-emerald-100 dark:border-emerald-900/40 shrink-0">
+                        {student.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-white text-xs">{student.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {student.registrationNumber}
                           </span>
-                          <span className="text-slate-500 font-mono">{formatPhoneNumber(phone)}</span>
-                        </td>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                          <span>Destinatário: <strong className="text-slate-700 dark:text-slate-300">{contactName}</strong></span>
+                          <span>•</span>
+                          <span className="font-mono">{formatPhoneNumber(targetPhone)}</span>
+                        </div>
+                      </div>
+                    </div>
 
-                        <td className="py-4 px-4 text-center">
-                          <div className="inline-flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px]">
-                            <button
-                              onClick={() => onUpdateStatus(student.id, 'nao_contatado')}
-                              className={`px-2 py-0.5 rounded-md font-medium cursor-pointer ${
-                                student.whatsappStatus === 'nao_contatado' ? 'bg-slate-700 text-white' : 'text-slate-500'
-                              }`}
-                            >
-                              Não
-                            </button>
-                            <button
-                              onClick={() => onUpdateStatus(student.id, 'mensagem_enviada')}
-                              className={`px-2 py-0.5 rounded-md font-medium cursor-pointer ${
-                                student.whatsappStatus === 'mensagem_enviada' ? 'bg-blue-600 text-white' : 'text-slate-500'
-                              }`}
-                            >
-                              Enviada
-                            </button>
-                            <button
-                              onClick={() => onUpdateStatus(student.id, 'confirmado')}
-                              className={`px-2 py-0.5 rounded-md font-medium cursor-pointer ${
-                                student.whatsappStatus === 'confirmado' ? 'bg-emerald-600 text-white' : 'text-slate-500'
-                              }`}
-                            >
-                              Confirmado
-                            </button>
-                          </div>
-                        </td>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        student.whatsappStatus === 'confirmado'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50'
+                          : student.whatsappStatus === 'mensagem_enviada'
+                          ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}>
+                        {student.whatsappStatus === 'confirmado' ? '✓ Confirmado' : student.whatsappStatus === 'mensagem_enviada' ? 'Enviado' : 'Pendente'}
+                      </span>
 
-                        <td className="py-4 px-5 text-right">
-                          <button
-                            onClick={() => onOpenWhatsApp(student)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs cursor-pointer active:scale-95"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Abrir & Enviar</span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  }))}
-                </tbody>
-              </table>
-            </div>
+                      <button
+                        onClick={() => onOpenWhatsApp(student)}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Abrir Mensagem</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Right Column: Template Library Preview */}
-        <div className="lg:col-span-4 bg-white rounded-2xl p-5 border border-slate-200/90 shadow-soft space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-            <FileText className="w-4 h-4 text-blue-600" />
-            <h3 className="font-bold text-slate-900 text-sm">Modelos Oficiais de Mensagem</h3>
+        {/* Right Column: Templates Viewer */}
+        <div className="lg:col-span-4 bg-white dark:bg-[#0E1726] rounded-xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
+              Modelos Institucionais
+            </h3>
+            <button
+              onClick={() => handleCopyTemplate(currentTemplate.text, currentTemplate.id)}
+              className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+            >
+              {copiedTemplate === currentTemplate.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+              <span>{copiedTemplate === currentTemplate.id ? 'Copiado!' : 'Copiar'}</span>
+            </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             {whatsappTemplates.map((tpl) => (
               <button
                 key={tpl.id}
                 onClick={() => setSelectedTemplateTab(tpl.id)}
-                className={`w-full text-left p-3 rounded-xl border text-xs transition-colors cursor-pointer ${
-                  selectedTemplateTab === tpl.id 
-                    ? 'border-emerald-500 bg-emerald-50/50 font-bold text-emerald-950' 
-                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                className={`w-full text-left p-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer block truncate ${
+                  selectedTemplateTab === tpl.id
+                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span>{tpl.title}</span>
-                  <Sparkles className="w-3 h-3 text-emerald-600" />
-                </div>
-                <p className="text-[11px] font-normal text-slate-500 mt-1">{tpl.description}</p>
+                {tpl.title}
               </button>
             ))}
           </div>
 
-          {/* Template Text Preview */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] font-mono leading-relaxed text-slate-700">
-            <span className="block font-bold text-slate-400 text-[10px] uppercase mb-1">Prévia do Texto:</span>
-            {whatsappTemplates.find(t => t.id === selectedTemplateTab)?.text}
+          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-200/80 dark:border-slate-800 text-[11px] font-mono text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto custom-scrollbar">
+            {currentTemplate.text}
           </div>
         </div>
       </div>

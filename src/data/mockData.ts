@@ -304,8 +304,9 @@ export const whatsappTemplates: WhatsAppTemplate[] = [
 
 Lembramos que o(a) aluno(a) *{nome_aluno}* está agendado(a) para a *{numero_aula}* neste *{data_aula}*, no turno da {turno}.
 
-📍 Local: {local}
+📍 Endereço: Rua Silva Jardim, 99 ({local})
 ⏰ Horário: Chegar com 10 min de antecedência.
+👕 Vestimenta obrigatória: Calça, sapato fechado e blusa vermelha ou branca.
 
 ⚠️ *Importante*: Para garantir o Certificado Oficial de Conclusão, a presença nas 4 aulas de sábado é indispensável (100% de frequência).
 
@@ -317,6 +318,7 @@ Por favor, responda esta mensagem com *CONFIRMO* para validarmos a presença na 
     description: 'Notifica falta e esclarece a regra estrita de 100% para o certificado.',
     text: `Olá, {nome_responsavel}. Notamos que *{nome_aluno}* não esteve presente na {numero_aula} do Treinamento Social UNIBE realizada em {data_aula}.
 
+📍 Endereço da Unidade: Rua Silva Jardim, 99
 Informamos que a regulamentação do curso exige 100% de assiduidade para emissão do Certificado Oficial de 16 horas.
 
 Caso haja justificativa médica ou de força maior, entre em contato imediatamente com nossa coordenação pedagógica.`
@@ -334,6 +336,8 @@ O ciclo completo é composto rigidamente por 4 sábados consecutivos:
 • Aula 4: {sabado_4}
 
 Turno: {turno} | {local}
+📍 Endereço Oficial: Rua Silva Jardim, 99
+👕 Vestimenta obrigatória: Calça, sapato fechado e blusa vermelha ou branca.
 
 Aguardamos você para essa jornada de transformação e aprendizado!`
   },
@@ -349,6 +353,6 @@ O Certificado Oficial de Formação Cívica e Social (16 Horas) está apto para 
 Chave de Validação: {codigo_certificado}
 Taxa de Emissão e Registro: R$ 35,00
 
-Você pode retirar a via impressa no polo ou baixar a versão digital autenticada.`
+📍 Local de Retirada da Via Impressa: Rua Silva Jardim, 99 (ou download da versão digital autenticada).`
   }
 ];

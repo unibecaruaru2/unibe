@@ -46,95 +46,83 @@ export const SaturdaySelector: React.FC<SaturdaySelectorProps> = ({
   const isLast = currentIndex >= availableSaturdays.length - 1 || currentIndex === -1;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 p-4 lg:p-5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="bg-white dark:bg-[#0E1726] rounded-xl border border-slate-200/90 dark:border-slate-800 p-3.5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
       {/* Left: Date Display & Fast Switchers */}
       <div className="flex items-center gap-3 w-full md:w-auto">
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
           <button
             onClick={handlePrev}
             disabled={isFirst}
-            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
             title="Sábado Anterior"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           
-          <button
-            onClick={() => onDateChange('2026-10-24')}
-            className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-blue-600 rounded-lg hover:bg-white transition-all"
-          >
-            Sábado Atual
-          </button>
+          <div className="px-2.5 py-0.5 text-center min-w-[120px]">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+              Sábado Letivo
+            </span>
+            <span className="text-xs font-black text-slate-900 dark:text-white font-mono">
+              {currentDate ? currentDate.split('-').reverse().join('/') : 'Selecione'}
+            </span>
+          </div>
 
           <button
             onClick={handleNext}
             disabled={isLast}
-            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
             title="Próximo Sábado"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-            <Calendar className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-900 text-sm md:text-base">
-                {formatFullPortugueseDate(currentDate)}
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                Aula {currentIndex >= 0 ? currentIndex + 1 : 4} de 4
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">
-              Ciclo de Treinamento Social Outubro 2026
-            </p>
-          </div>
+        <div className="hidden sm:flex flex-col">
+          <span className="text-xs font-bold text-slate-900 dark:text-white">
+            {currentDate ? formatFullPortugueseDate(currentDate) : 'Data do Ciclo'}
+          </span>
+          <span className="text-[10px] text-slate-400">
+            {currentIndex + 1}º de {availableSaturdays.length} sábados cadastrados
+          </span>
         </div>
       </div>
 
-      {/* Right: Shift filter toggle pills */}
-      <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-        <span className="text-xs font-medium text-slate-400 mr-1 hidden sm:inline">
-          Turno:
-        </span>
-        <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200/80">
-          <button
-            onClick={() => onShiftChange('todos')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              activeShift === 'todos'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Todos
-          </button>
-          <button
-            onClick={() => onShiftChange('manha')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              activeShift === 'manha'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sun className="w-3.5 h-3.5" />
-            <span>Manhã (08h-12h)</span>
-          </button>
-          <button
-            onClick={() => onShiftChange('tarde')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              activeShift === 'tarde'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Moon className="w-3.5 h-3.5" />
-            <span>Tarde (13h-17h)</span>
-          </button>
-        </div>
+      {/* Right: Shift Selector */}
+      <div className="flex items-center gap-1.5 w-full md:w-auto justify-end">
+        <span className="text-slate-400 text-[11px] mr-1 hidden sm:inline">Turno:</span>
+        <button
+          onClick={() => onShiftChange('todos')}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+            activeShift === 'todos'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+          }`}
+        >
+          Todos
+        </button>
+        <button
+          onClick={() => onShiftChange('manha')}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+            activeShift === 'manha'
+              ? 'bg-amber-500 text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Sun className="w-3.5 h-3.5" />
+          <span>Manhã</span>
+        </button>
+        <button
+          onClick={() => onShiftChange('tarde')}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+            activeShift === 'tarde'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Moon className="w-3.5 h-3.5" />
+          <span>Tarde</span>
+        </button>
       </div>
     </div>
   );

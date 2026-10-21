@@ -47,7 +47,7 @@ export const StudentsTable: React.FC<StudentsTableProps> = ({
           <button
             onClick={() => onToggleAttendance(studentId, lessonNum)}
             title={`Aula ${lessonNum}: Presente (Clique para alterar para Falta)`}
-            className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center border border-emerald-300 shadow-xs transition-transform active:scale-95 cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center border border-emerald-300 dark:border-emerald-800 shadow-xs transition-transform active:scale-95 cursor-pointer"
           >
             P
           </button>
@@ -57,7 +57,7 @@ export const StudentsTable: React.FC<StudentsTableProps> = ({
           <button
             onClick={() => onToggleAttendance(studentId, lessonNum)}
             title={`Aula ${lessonNum}: Falta (Clique para alterar para Pendente)`}
-            className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center border border-rose-300 shadow-xs transition-transform active:scale-95 cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 font-bold text-xs flex items-center justify-center border border-rose-300 dark:border-rose-800 shadow-xs transition-transform active:scale-95 cursor-pointer"
           >
             F
           </button>
@@ -68,7 +68,7 @@ export const StudentsTable: React.FC<StudentsTableProps> = ({
           <button
             onClick={() => onToggleAttendance(studentId, lessonNum)}
             title={`Aula ${lessonNum}: Pendente (Clique para registrar Presença)`}
-            className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-200 text-slate-400 font-bold text-xs flex items-center justify-center border border-slate-200 shadow-xs transition-transform active:scale-95 cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 font-bold text-xs flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-xs transition-transform active:scale-95 cursor-pointer"
           >
             -
           </button>
