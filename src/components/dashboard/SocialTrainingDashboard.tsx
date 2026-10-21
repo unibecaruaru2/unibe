@@ -31,11 +31,24 @@ export const SocialTrainingDashboard: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) return true;
       return localStorage.getItem('unibe_sidebar_collapsed') === 'true';
     } catch {
       return false;
     }
   });
+
+  // Ensure tablet & mobile start collapsed
+  useEffect(() => {
+    const checkWidth = () => {
+      if (window.innerWidth < 1024) {
+        setSidebarCollapsed(true);
+      }
+    };
+    checkWidth();
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
+  }, []);
 
   const toggleSidebar = () => {
     setSidebarCollapsed(prev => {
@@ -45,6 +58,13 @@ export const SocialTrainingDashboard: React.FC = () => {
       } catch {}
       return next;
     });
+  };
+
+  const handleNavigate = (path: string) => {
+    setCurrentRoute(path);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarCollapsed(true);
+    }
   };
 
   // Data States (Operação 100% com Dados Reais do Supabase)
@@ -416,10 +436,19 @@ export const SocialTrainingDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Mobile/Tablet Backdrop Overlay */}
+      {!sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden transition-opacity cursor-pointer"
+          onClick={() => setSidebarCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* 1. Left Sidebar Navigation (Deep Navy #0B192C) */}
       <Sidebar 
         currentPath={currentRoute}
-        onNavigate={setCurrentRoute}
+        onNavigate={handleNavigate}
         collapsed={sidebarCollapsed}
         onToggleCollapse={toggleSidebar}
       />

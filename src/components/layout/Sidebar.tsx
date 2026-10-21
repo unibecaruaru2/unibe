@@ -37,8 +37,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside 
-      className={`bg-[#0B192C] text-slate-300 flex flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out z-30 select-none border-r border-slate-800/80 shrink-0 ${
-        collapsed ? 'w-[72px]' : 'w-64'
+      className={`bg-[#0B192C] text-slate-300 flex flex-col h-screen select-none border-r border-slate-800/80 shrink-0 transition-all duration-300 ease-in-out ${
+        collapsed 
+          ? 'hidden lg:flex lg:sticky lg:top-0 lg:w-[72px] lg:z-30' 
+          : 'fixed inset-y-0 left-0 z-50 w-64 shadow-2xl lg:sticky lg:top-0 lg:z-30 lg:shadow-none'
       }`}
     >
       {/* Brand Header + Collapse Toggle Button */}
