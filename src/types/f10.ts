@@ -2,7 +2,8 @@ export type RegimeFinanceiro = 'QUITADO' | 'CARNE_MENSALISTA';
 
 export type QuadranteRisco = 
   | 'Q1_OVERDUE_ATTENDING'   // Inadimplente Frequentando (Alto Potencial de Recuperação)
-  | 'Q2_ABSENT_CHURN'         // Risco Crítico de Evasão (Faltas >= 3, Ativo)
+  | 'Q1_OVERDUE_ABSENT'      // Inadimplente Ausente (Risco Duplo: Financeiro + Evasão)
+  | 'Q2_ABSENT_CHURN'         // Risco Crítico de Evasão (Faltas >= 3, Ativo sem débito vencido)
   | 'Q3_WAITING_CANCEL'       // Aguardando Cancelamento (Fila de Retenção)
   | 'Q4_REGULAR';             // Aluno Regular / Saudável
 
@@ -65,6 +66,8 @@ export interface MatriculaAcademicaF10 {
   quadranteRisco: QuadranteRisco;
   isAguardandoQuitado: boolean; // Aluno que quer cancelar mas já pagou o curso integral
   motivoCancelamento?: string;
+  tratativaTipo?: string;
+  tratativaNotas?: string;
 
   createdAt: string;
 }
@@ -75,8 +78,14 @@ export interface F10KpisData {
   totalCarne: number;
   totalTurmasUnicas: number;
   
-  // Métricas de Risco & Prevenção
-  receitaVencidaFrequentando: number;
+  // Métricas de Risco & Inadimplência Geral
+  receitaTotalVencida: number; // Inadimplência Geral em R$
+  totalAlunosInadimplentes: number; // Todos com valorVencido > 0
+  receitaVencidaFrequentando: number; // Q1 Frequentando
+  alunosInadimplentesFrequentando: number;
+  receitaVencidaAusentes: number; // Q1 Ausente
+  alunosInadimplentesAusentes: number;
+
   alunosRiscoEvasao: number; // Q2
   solicitacoesCancelamento: number; // Q3
   cancelamentosQuitadosRiscoEstorno: number;

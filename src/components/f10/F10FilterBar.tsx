@@ -1,14 +1,16 @@
 import React from 'react';
-import { Search, Filter, X, GraduationCap, AlertTriangle, ShieldAlert, UserX, CheckCircle, Smartphone } from 'lucide-react';
+import { Search, Filter, X, GraduationCap, AlertTriangle, ShieldAlert, UserX, CheckCircle, Smartphone, UserMinus, CalendarCheck2 } from 'lucide-react';
 import { QuadranteRisco, RegimeFinanceiro } from '../../types/f10';
+
+export type FilterQuadrantOption = 'TODOS' | 'INADIMPLENTES_TODOS' | QuadranteRisco | 'SEM_APP';
 
 interface F10FilterBarProps {
   searchQuery: string;
   setSearchQuery: (val: string) => void;
   selectedTurma: string;
   setSelectedTurma: (val: string) => void;
-  selectedQuadrant: 'TODOS' | QuadranteRisco | 'SEM_APP';
-  setSelectedQuadrant: (val: 'TODOS' | QuadranteRisco | 'SEM_APP') => void;
+  selectedQuadrant: FilterQuadrantOption;
+  setSelectedQuadrant: (val: FilterQuadrantOption) => void;
   selectedRegime: 'TODOS' | RegimeFinanceiro;
   setSelectedRegime: (val: 'TODOS' | RegimeFinanceiro) => void;
   availableTurmas: string[];
@@ -33,13 +35,15 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
 }) => {
   const hasActiveFilters = searchQuery !== '' || selectedTurma !== 'TODOS' || selectedQuadrant !== 'TODOS' || selectedRegime !== 'TODOS';
 
-  const quadrantPills: Array<{ id: 'TODOS' | QuadranteRisco | 'SEM_APP'; label: string; icon: any; color: string }> = [
-    { id: 'TODOS', label: 'Todos', icon: Filter, color: 'text-slate-600 dark:text-slate-300' },
-    { id: 'Q1_OVERDUE_ATTENDING', label: 'Q1: Inadimplente Frequentando', icon: ShieldAlert, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/60 border-rose-200' },
-    { id: 'Q2_ABSENT_CHURN', label: 'Q2: Risco Evasão (≥3 Faltas)', icon: AlertTriangle, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60 border-amber-200' },
-    { id: 'Q3_WAITING_CANCEL', label: 'Q3: Fila de Retenção (Aguardando)', icon: UserX, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/60 border-purple-200' },
-    { id: 'Q4_REGULAR', label: 'Q4: Regular / Saudável', icon: CheckCircle, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200' },
-    { id: 'SEM_APP', label: 'Sem App Ativo', icon: Smartphone, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/60 border-blue-200' }
+  const quadrantPills: Array<{ id: FilterQuadrantOption; label: string; icon: any; color: string }> = [
+    { id: 'TODOS', label: 'Todos', icon: Filter, color: 'text-slate-600' },
+    { id: 'INADIMPLENTES_TODOS', label: '🚨 Todos Inadimplentes (Geral)', icon: ShieldAlert, color: 'text-rose-600' },
+    { id: 'Q1_OVERDUE_ATTENDING', label: 'Inadimplente em Aula', icon: CalendarCheck2, color: 'text-emerald-600' },
+    { id: 'Q1_OVERDUE_ABSENT', label: 'Inadimplente Ausente', icon: UserMinus, color: 'text-rose-600' },
+    { id: 'Q2_ABSENT_CHURN', label: 'Risco Evasão (≥3 Faltas)', icon: AlertTriangle, color: 'text-amber-600' },
+    { id: 'Q3_WAITING_CANCEL', label: 'Aguardando Cancelamento', icon: UserX, color: 'text-purple-600' },
+    { id: 'Q4_REGULAR', label: 'Regular / Saudável', icon: CheckCircle, color: 'text-emerald-600' },
+    { id: 'SEM_APP', label: 'Sem App Ativo', icon: Smartphone, color: 'text-blue-600' }
   ];
 
   return (
@@ -99,7 +103,7 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
           {hasActiveFilters && (
             <button
               onClick={onClearFilters}
-              className="px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 transition-colors flex items-center gap-1"
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 transition-colors flex items-center gap-1 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
               <span>Limpar</span>
@@ -112,10 +116,10 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
         </div>
       </div>
 
-      {/* Linha Inferior: Pílulas Rápidas da Matriz de Quadrantes */}
+      {/* Linha Inferior: Pílulas Rápidas da Matriz de Quadrantes & Inadimplência */}
       <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
-          Filtros de Risco:
+          Filtros Rápidos:
         </span>
         {quadrantPills.map(p => {
           const Icon = p.icon;

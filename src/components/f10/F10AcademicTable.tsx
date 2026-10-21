@@ -10,7 +10,9 @@ import {
   Smartphone,
   Calendar,
   Sparkles,
-  GraduationCap
+  GraduationCap,
+  CalendarCheck2,
+  UserMinus
 } from 'lucide-react';
 import { MatriculaAcademicaF10 } from '../../types/f10';
 
@@ -35,7 +37,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
           Nenhuma matrícula encontrada no filtro selecionado
         </h4>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-          Tente alterar o quadrante de risco ou limpar a busca textual acima.
+          Tente alterar o filtro de risco, a turma unificada ou o termo de busca acima.
         </p>
       </div>
     );
@@ -57,7 +59,8 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
             {matriculas.map((mat) => {
-              const isQ1 = mat.quadranteRisco === 'Q1_OVERDUE_ATTENDING';
+              const isQ1Attending = mat.quadranteRisco === 'Q1_OVERDUE_ATTENDING';
+              const isQ1Absent = mat.quadranteRisco === 'Q1_OVERDUE_ABSENT';
               const isQ2 = mat.quadranteRisco === 'Q2_ABSENT_CHURN';
               const isQ3 = mat.quadranteRisco === 'Q3_WAITING_CANCEL';
               const isQ4 = mat.quadranteRisco === 'Q4_REGULAR';
@@ -68,8 +71,10 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                   className={`transition-colors group ${
                     isQ3 && mat.isAguardandoQuitado
                       ? 'bg-rose-50/30 dark:bg-rose-950/20 hover:bg-rose-50/50'
-                      : isQ1
+                      : isQ1Attending
                       ? 'hover:bg-rose-50/20 dark:hover:bg-rose-950/20'
+                      : isQ1Absent
+                      ? 'bg-rose-50/15 dark:bg-rose-950/10 hover:bg-rose-50/30'
                       : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
                   }`}
                 >
@@ -109,23 +114,36 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                           </span>
                         ))}
                       </div>
+
+                      {mat.tratativaTipo && (
+                        <div className="mt-1 text-[10px] text-purple-600 dark:text-purple-400 font-medium bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded w-fit">
+                          Tratativa: {mat.tratativaTipo.replace('_', ' ')}
+                        </div>
+                      )}
                     </div>
                   </td>
 
                   {/* Classificação de Risco (Matriz de Quadrantes) */}
                   <td className="py-3.5 px-4 align-top">
                     <div className="flex flex-col gap-1">
-                      {isQ1 && (
+                      {isQ1Attending && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold text-[11px] border border-rose-200/80 w-fit">
-                          <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Q1: Inadimplente Frequente</span>
+                          <CalendarCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Inadimplente em Aula</span>
+                        </span>
+                      )}
+
+                      {isQ1Absent && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 font-bold text-[11px] border border-rose-300 w-fit">
+                          <UserMinus className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Inadimplente Ausente</span>
                         </span>
                       )}
 
                       {isQ2 && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-[11px] border border-amber-200/80 w-fit">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Q2: Risco Crítico de Evasão</span>
+                          <span>Q2: Risco Evasão</span>
                         </span>
                       )}
 
@@ -137,7 +155,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                           </span>
                           {mat.isAguardandoQuitado && (
                             <span className="text-[10px] font-bold text-rose-600 flex items-center gap-1 pl-1">
-                              ⚠️ Contrato Quitado (Risco Estorno!)
+                              ⚠️ Quitado À Vista (Risco Estorno!)
                             </span>
                           )}
                         </div>
@@ -234,8 +252,8 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                   {/* Ações Operacionais */}
                   <td className="py-3.5 px-4 align-top text-right">
                     <div className="flex flex-col items-end gap-1.5">
-                      {/* Gatilho Q1: WhatsApp Cobrança com Link F10 */}
-                      {isQ1 && (
+                      {/* Cobrança para qualquer Inadimplente (Frequentando ou Ausente) */}
+                      {(isQ1Attending || isQ1Absent) && (
                         <button
                           type="button"
                           onClick={() => onOpenWhatsApp(mat, 'COBRANCA')}
@@ -247,7 +265,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                         </button>
                       )}
 
-                      {/* Gatilho Q2: Resgate Pedagógico / Reposição */}
+                      {/* Resgate Pedagógico */}
                       {isQ2 && (
                         <button
                           type="button"
@@ -260,7 +278,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                         </button>
                       )}
 
-                      {/* Gatilho Q3: Tratativa de Retenção */}
+                      {/* Retenção */}
                       {isQ3 && (
                         <button
                           type="button"
@@ -273,7 +291,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                         </button>
                       )}
 
-                      {/* Regular / Outros */}
+                      {/* Regular */}
                       {isQ4 && (
                         <button
                           type="button"

@@ -34,7 +34,6 @@ export function canonicalizeTurma(turmaStr: string): string {
     return 'Mirim 7 (Tarde)';
   }
 
-  // Limpa sufixos de turma
   return norm;
 }
 
@@ -47,11 +46,9 @@ export function parseCurrencyNumber(val?: string | null): number {
   const clean = val.replace(/[^\d,\.]/g, '').trim();
   if (!clean) return 0;
 
-  // Se tem ponto e vírgula (padrão BR: 3.180,00)
   if (clean.includes(',') && clean.includes('.')) {
     return parseFloat(clean.replace(/\./g, '').replace(',', '.')) || 0;
   }
-  // Se tem apenas vírgula (ex: 3180,00)
   if (clean.includes(',')) {
     return parseFloat(clean.replace(',', '.')) || 0;
   }
@@ -59,12 +56,10 @@ export function parseCurrencyNumber(val?: string | null): number {
 }
 
 /**
- * Verifica se a presença registrada é recente (dentro de 30 dias em relação a Outubro/2026).
+ * Verifica se a presença registrada é recente (dentro de 30 dias em relação ao mês vigente).
  */
 export function isPresenceRecent(ultimaPresenca?: string): boolean {
   if (!ultimaPresenca) return false;
-  // Como o relatório do F10 é de Outubro/2026:
-  // Presenças em Outubro (10/2026) ou final de Setembro (09/2026) são recentes.
   const parts = ultimaPresenca.split('/');
   if (parts.length === 3) {
     const mes = parseInt(parts[1], 10);
@@ -78,6 +73,7 @@ export function isPresenceRecent(ultimaPresenca?: string): boolean {
 
 /**
  * Classifica o aluno na Matriz de 4 Quadrantes Operacionais
+ * Agora com suporte explícito a Inadimplente Frequentando E Inadimplente Ausente!
  */
 export function classifyRiskQuadrant(params: {
   statusContrato: string;
@@ -87,25 +83,24 @@ export function classifyRiskQuadrant(params: {
 }): QuadranteRisco {
   const status = (params.statusContrato || '').toLowerCase().trim();
 
-  // Q3: Aguardando Cancelamento (Prioridade Máxima de Retenção)
+  // Q3: Aguardando Cancelamento (Prioridade de Retenção)
   if (status.includes('aguardando') || status.includes('cancel')) {
     return 'Q3_WAITING_CANCEL';
   }
 
-  // Q1: Inadimplente Frequentando (Alto Potencial de Recuperação)
-  // Valor Vencido > 0 E frequentou recentemente
-  if (params.valorVencidoNum > 0 && isPresenceRecent(params.ultimaPresenca)) {
-    return 'Q1_OVERDUE_ATTENDING';
+  // Se tem valor vencido > 0:
+  if (params.valorVencidoNum > 0) {
+    if (isPresenceRecent(params.ultimaPresenca)) {
+      // Q1: Inadimplente Frequentando (Alto Potencial de Recuperação)
+      return 'Q1_OVERDUE_ATTENDING';
+    }
+    // Q1: Inadimplente Ausente (Risco Duplo: Financeiro + Evasão)
+    return 'Q1_OVERDUE_ABSENT';
   }
 
-  // Q2: Risco Crítico de Evasão (Faltas >= 3 E Ativo)
+  // Q2: Risco Crítico de Evasão (Faltas >= 3 E Ativo sem débito vencido)
   if (params.faltasTotais >= 3 && status === 'ativo') {
     return 'Q2_ABSENT_CHURN';
-  }
-
-  // Se tem valor vencido mas não tem presença recente, também é risco Q1/Q2
-  if (params.valorVencidoNum > 0) {
-    return 'Q1_OVERDUE_ATTENDING';
   }
 
   // Q4: Aluno Regular / Saudável
@@ -113,10 +108,16 @@ export function classifyRiskQuadrant(params: {
 }
 
 /**
- * Calcula os KPIs Consolidados para a Central de Evasão & Risco
+ * Calcula os KPIs Consolidados para a Central de Evasão, Inadimplência & Risco
  */
 export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisData {
+  let receitaTotalVencida = 0;
+  let totalAlunosInadimplentes = 0;
   let receitaVencidaFrequentando = 0;
+  let alunosInadimplentesFrequentando = 0;
+  let receitaVencidaAusentes = 0;
+  let alunosInadimplentesAusentes = 0;
+
   let alunosRiscoEvasao = 0;
   let solicitacoesCancelamento = 0;
   let cancelamentosQuitadosRiscoEstorno = 0;
@@ -133,9 +134,18 @@ export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisDa
 
     m.turmasCanonicas.forEach(t => turmasSet.add(t));
 
-    // Q1: Receita Vencida de Alunos que Frequentam
-    if (m.quadranteRisco === 'Q1_OVERDUE_ATTENDING') {
-      receitaVencidaFrequentando += m.valorVencidoNum;
+    // Inadimplência Geral
+    if (m.valorVencidoNum > 0) {
+      receitaTotalVencida += m.valorVencidoNum;
+      totalAlunosInadimplentes++;
+
+      if (m.quadranteRisco === 'Q1_OVERDUE_ATTENDING') {
+        receitaVencidaFrequentando += m.valorVencidoNum;
+        alunosInadimplentesFrequentando++;
+      } else {
+        receitaVencidaAusentes += m.valorVencidoNum;
+        alunosInadimplentesAusentes++;
+      }
     }
 
     // Q2: Risco de Evasão
@@ -156,7 +166,7 @@ export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisDa
       alunosSemApp++;
     }
 
-    // No Show (muitas faltas e nunca pisou na escola)
+    // No Show
     if (m.isNoShow) {
       alunosNoShow++;
     }
@@ -167,7 +177,12 @@ export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisDa
     totalQuitados,
     totalCarne,
     totalTurmasUnicas: turmasSet.size,
+    receitaTotalVencida,
+    totalAlunosInadimplentes,
     receitaVencidaFrequentando,
+    alunosInadimplentesFrequentando,
+    receitaVencidaAusentes,
+    alunosInadimplentesAusentes,
     alunosRiscoEvasao,
     solicitacoesCancelamento,
     cancelamentosQuitadosRiscoEstorno,

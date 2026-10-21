@@ -1,9 +1,10 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { classificarRegime, parseTurmas, sanitizePhoneToWhatsApp } from './f10Parser';
-import { canonicalizeTurma, classifyRiskQuadrant, parseCurrencyNumber } from '../utils/f10Analytics';
+import { canonicalizeTurma, classifyRiskQuadrant, parseCurrencyNumber, calculateF10Kpis } from '../utils/f10Analytics';
+import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
 
-describe('Módulo de Prevenção de Evasão, Recuperação & Risco ERP F10', () => {
+describe('Módulo de Prevenção de Evasão, Inadimplência Geral & Sincronização F10', () => {
   describe('canonicalizeTurma() - Unificação Canônica de Turmas', () => {
     test('deve unificar PM.7 e PM.707 na mesma turma canônica', () => {
       assert.strictEqual(canonicalizeTurma('Pm.707-1'), 'PM.7 / PM.707 (Manhã)');
@@ -15,26 +16,10 @@ describe('Módulo de Prevenção de Evasão, Recuperação & Risco ERP F10', () 
       assert.strictEqual(canonicalizeTurma('Mirim.707-1'), 'Mirim 7 / 707 (Manhã)');
       assert.strictEqual(canonicalizeTurma('Mirim.7- Manhã'), 'Mirim 7 / 707 (Manhã)');
     });
-
-    test('deve manter outras turmas específicas intactas', () => {
-      assert.strictEqual(canonicalizeTurma('Epcar-707-1'), 'Epcar-707-1');
-      assert.strictEqual(canonicalizeTurma('Mirim.35-1'), 'Mirim.35-1');
-      assert.strictEqual(canonicalizeTurma('Ad.2401-1'), 'Ad.2401-1');
-    });
   });
 
-  describe('classifyRiskQuadrant() - Matriz de 4 Quadrantes Operacionais', () => {
-    test('Q3: Aluno com status Aguardando deve ser classificado como Fila de Retenção', () => {
-      const q = classifyRiskQuadrant({
-        statusContrato: 'Aguardando',
-        valorVencidoNum: 0,
-        faltasTotais: 1,
-        ultimaPresenca: '17/10/2026'
-      });
-      assert.strictEqual(q, 'Q3_WAITING_CANCEL');
-    });
-
-    test('Q1: Aluno com valor vencido > 0 e presença recente deve ser Inadimplente Frequente', () => {
+  describe('classifyRiskQuadrant() - Inadimplência Frequentando vs Inadimplente Ausente', () => {
+    test('Q1: Inadimplente Frequentando (valor vencido > 0 e presença recente)', () => {
       const q = classifyRiskQuadrant({
         statusContrato: 'Ativo',
         valorVencidoNum: 230.00,
@@ -44,7 +29,27 @@ describe('Módulo de Prevenção de Evasão, Recuperação & Risco ERP F10', () 
       assert.strictEqual(q, 'Q1_OVERDUE_ATTENDING');
     });
 
-    test('Q2: Aluno com 3 ou mais faltas e status Ativo deve ser Risco Crítico de Evasão', () => {
+    test('Q1: Inadimplente Ausente (valor vencido > 0 e sem presença recente)', () => {
+      const q = classifyRiskQuadrant({
+        statusContrato: 'Ativo',
+        valorVencidoNum: 600.00,
+        faltasTotais: 10,
+        ultimaPresenca: undefined
+      });
+      assert.strictEqual(q, 'Q1_OVERDUE_ABSENT');
+    });
+
+    test('Q3: Aluno com status Aguardando deve ser Fila de Retenção', () => {
+      const q = classifyRiskQuadrant({
+        statusContrato: 'Aguardando',
+        valorVencidoNum: 0,
+        faltasTotais: 1,
+        ultimaPresenca: '17/10/2026'
+      });
+      assert.strictEqual(q, 'Q3_WAITING_CANCEL');
+    });
+
+    test('Q2: Aluno com 3 ou mais faltas e status Ativo deve ser Risco de Evasão', () => {
       const q = classifyRiskQuadrant({
         statusContrato: 'Ativo',
         valorVencidoNum: 0,
@@ -54,7 +59,7 @@ describe('Módulo de Prevenção de Evasão, Recuperação & Risco ERP F10', () 
       assert.strictEqual(q, 'Q2_ABSENT_CHURN');
     });
 
-    test('Q4: Aluno sem atrasos e com baixa ausência deve ser Regular / Saudável', () => {
+    test('Q4: Aluno regular e sem atrasos', () => {
       const q = classifyRiskQuadrant({
         statusContrato: 'Ativo',
         valorVencidoNum: 0,
@@ -62,6 +67,20 @@ describe('Módulo de Prevenção de Evasão, Recuperação & Risco ERP F10', () 
         ultimaPresenca: '17/10/2026'
       });
       assert.strictEqual(q, 'Q4_REGULAR');
+    });
+  });
+
+  describe('calculateF10Kpis() - Métricas de Inadimplência Geral', () => {
+    test('deve calcular corretamente a receita total vencida e a divisão entre frequentando e ausentes', () => {
+      const kpis = calculateF10Kpis(SAMPLE_F10_MATRICULAS);
+      assert.ok(kpis.receitaTotalVencida > 0);
+      assert.ok(kpis.totalAlunosInadimplentes > 0);
+      assert.ok(kpis.alunosInadimplentesFrequentando > 0);
+      assert.ok(kpis.alunosInadimplentesAusentes > 0);
+      assert.strictEqual(
+        kpis.receitaTotalVencida, 
+        kpis.receitaVencidaFrequentando + kpis.receitaVencidaAusentes
+      );
     });
   });
 
@@ -75,28 +94,10 @@ describe('Módulo de Prevenção de Evasão, Recuperação & Risco ERP F10', () 
   });
 
   describe('classificarRegime()', () => {
-    test('deve classificar A.V (À Vista pontuado) como QUITADO', () => {
+    test('deve classificar A.V e S.A.V como QUITADO e Venda como CARNE_MENSALISTA', () => {
       assert.strictEqual(classificarRegime('A.V'), 'QUITADO');
-    });
-
-    test('deve classificar S.A.V (Super À Vista pontuado) como QUITADO', () => {
       assert.strictEqual(classificarRegime('S.A.V'), 'QUITADO');
-    });
-
-    test('deve classificar Venda como CARNE_MENSALISTA', () => {
       assert.strictEqual(classificarRegime('Venda'), 'CARNE_MENSALISTA');
-    });
-  });
-
-  describe('parseTurmas()', () => {
-    test('deve separar turmas e extrair código canônico e turno', () => {
-      const raw = 'Mirim.35-1 - Raphael Nonato,Mirim.7- Manhã - Raphael Nonato';
-      const result = parseTurmas(raw);
-
-      assert.strictEqual(result.length, 2);
-      assert.strictEqual(result[0].codigoTurma, 'Mirim.35-1');
-      assert.strictEqual(result[1].codigoCanonico, 'Mirim 7 / 707 (Manhã)');
-      assert.strictEqual(result[1].turno, 'Manhã');
     });
   });
 

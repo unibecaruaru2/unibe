@@ -7,7 +7,8 @@ import {
   DollarSign, 
   UserX,
   ShieldAlert,
-  Award
+  CalendarCheck2,
+  UserMinus
 } from 'lucide-react';
 import { MatriculaAcademicaF10 } from '../../types/f10';
 import { calculateF10Kpis } from '../../utils/f10Analytics';
@@ -33,11 +34,11 @@ export const F10Kpis: React.FC<F10KpisProps> = ({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* KPI 1 - Receita Vencida Recuperável (Q1) */}
+      {/* KPI 1 - Inadimplência Geral & Recuperável (Total Vencido) */}
       <div 
-        onClick={() => onSelectQuadrant && onSelectQuadrant(activeQuadrantFilter === 'Q1_OVERDUE_ATTENDING' ? 'TODOS' : 'Q1_OVERDUE_ATTENDING')}
+        onClick={() => onSelectQuadrant && onSelectQuadrant(activeQuadrantFilter === 'INADIMPLENTES_TODOS' ? 'TODOS' : 'INADIMPLENTES_TODOS')}
         className={`bg-white dark:bg-[#0E1726] rounded-2xl p-4 border transition-all cursor-pointer shadow-xs ${
-          activeQuadrantFilter === 'Q1_OVERDUE_ATTENDING'
+          activeQuadrantFilter === 'INADIMPLENTES_TODOS' || activeQuadrantFilter === 'Q1_OVERDUE_ATTENDING' || activeQuadrantFilter === 'Q1_OVERDUE_ABSENT'
             ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20'
             : 'border-rose-200/80 dark:border-rose-950/60 hover:border-rose-400'
         }`}
@@ -45,7 +46,7 @@ export const F10Kpis: React.FC<F10KpisProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
             <DollarSign className="w-3.5 h-3.5" />
-            Receita Vencida Recuperável
+            Inadimplência Geral
           </span>
           <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
             <ShieldAlert className="w-4 h-4" />
@@ -53,11 +54,37 @@ export const F10Kpis: React.FC<F10KpisProps> = ({
         </div>
         <div className="mt-3">
           <div className="text-2xl font-black text-rose-800 dark:text-rose-200 tracking-tight">
-            {formatBRL(kpis.receitaVencidaFrequentando)}
+            {formatBRL(kpis.receitaTotalVencida)}
           </div>
-          <p className="text-[11px] text-rose-600/90 dark:text-rose-400/90 mt-1">
-            Alunos em atraso que <strong>continuam frequentando</strong> as aulas
-          </p>
+          
+          {/* Segmentação: Frequentando vs Ausentes */}
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-rose-100 dark:border-rose-900/40 text-[11px]">
+            <span 
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectQuadrant && onSelectQuadrant('Q1_OVERDUE_ATTENDING');
+              }}
+              className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.5 rounded hover:underline"
+              title="Clique para filtrar apenas os que frequentam"
+            >
+              <CalendarCheck2 className="w-3 h-3" />
+              {kpis.alunosInadimplentesFrequentando} em aula ({formatBRL(kpis.receitaVencidaFrequentando)})
+            </span>
+
+            {kpis.alunosInadimplentesAusentes > 0 && (
+              <span 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectQuadrant && onSelectQuadrant('Q1_OVERDUE_ABSENT');
+                }}
+                className="inline-flex items-center gap-1 font-semibold text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/80 px-1.5 py-0.5 rounded hover:underline"
+                title="Clique para filtrar inadimplentes ausentes"
+              >
+                <UserMinus className="w-3 h-3" />
+                {kpis.alunosInadimplentesAusentes} ausentes
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -120,7 +147,7 @@ export const F10Kpis: React.FC<F10KpisProps> = ({
               {kpis.solicitacoesCancelamento}
             </span>
             {kpis.cancelamentosQuitadosRiscoEstorno > 0 && (
-              <span className="text-[10px] font-bold text-rose-700 bg-rose-100 dark:bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-300" title="Alunos com contrato Quitado À Vista em risco de estorno!">
+              <span className="text-[10px] font-bold text-rose-700 bg-rose-100 dark:bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-300">
                 ⚠️ {kpis.cancelamentosQuitadosRiscoEstorno} Quitados!
               </span>
             )}

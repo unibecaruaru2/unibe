@@ -114,7 +114,7 @@ function createMatricula(params: {
 }
 
 export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
-  // 1. Q1: Inadimplente Frequente (Tem valor vencido e frequentou recentemente no mês 10/2026)
+  // 1. Q1: Inadimplente Frequentando (Presença recente em 10/2026 e parcela vencida)
   createMatricula({
     contrato: '2.349',
     alunoNome: 'Davi Eliaquim Ferreira dos Santos',
@@ -164,31 +164,6 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     sexo: 'M'
   }),
   createMatricula({
-    contrato: '2.379',
-    alunoNome: 'Rodrigo Klebersom Supriano da Silva',
-    statusContrato: 'Aguardando',
-    telefonePrincipal: '(81) 99147-1702',
-    bairro: 'Universitário',
-    rawTurma: 'Epcar-707-1 - Dayana Silva',
-    dataMatricula: '21/08/2026',
-    dataInicio: '22/08/2026',
-    ultimaPresenca: '17/10/2026',
-    ultimaFalta: '22/08/2026',
-    faltasTotais: 7,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 3.975,00',
-    valorPago: 'R$ 265,00',
-    valorAberto: 'R$ 3.710,00',
-    valorVencido: 'R$ 265,00',
-    parcelasVencidas: 1,
-    parcelasAberto: 14,
-    smartAluno: 'Não Cadastrado',
-    smartTitular: 'Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/3T7S0Y',
-    idade: 11,
-    sexo: 'M'
-  }),
-  createMatricula({
     contrato: '2.358',
     alunoNome: 'Carlos Henrique dos Santos Silva',
     statusContrato: 'Ativo',
@@ -214,7 +189,57 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     sexo: 'M'
   }),
 
-  // 2. Q2: Risco Crítico de Evasão (Faltas >= 3, Ativo)
+  // 2. Q1_OVERDUE_ABSENT: Inadimplente Ausente / Não Frequente (Parcelas vencidas e sem frequência recente)
+  createMatricula({
+    contrato: '2.329',
+    alunoNome: 'Fagner Henrique Pereira da Silva',
+    statusContrato: 'Ativo',
+    telefonePrincipal: '(81) 99357-4480',
+    bairro: 'São Francisco',
+    rawTurma: 'Ad.713-1 - Raphael Nonato,Epcar-707-1 - Dayana Silva',
+    dataMatricula: '03/07/2026',
+    dataInicio: '04/07/2026',
+    ultimaFalta: '18/07/2026',
+    faltasTotais: 10,
+    origemContratoF10: 'Venda',
+    valorTotal: 'R$ 3.015,00',
+    valorPago: 'R$ 215,00',
+    valorAberto: 'R$ 2.800,00',
+    valorVencido: 'R$ 600,00',
+    parcelasVencidas: 3,
+    parcelasAberto: 14,
+    smartAluno: 'Cadastrado',
+    smartTitular: 'Cadastrado',
+    linkPagamentoF10: 'https://r.f10.com.br/WMINPT',
+    idade: 1,
+    sexo: 'M'
+  }),
+  createMatricula({
+    contrato: '2.330',
+    alunoNome: 'Leticia Siqueira de Almeida Lacerda',
+    statusContrato: 'Ativo',
+    telefonePrincipal: '(81) 99562-5024',
+    bairro: 'Panelas',
+    rawTurma: 'Epcar-707-1 - Dayana Silva',
+    dataMatricula: '03/07/2026',
+    dataInicio: '04/07/2026',
+    ultimaFalta: '15/08/2026',
+    faltasTotais: 8,
+    origemContratoF10: 'Venda',
+    valorTotal: 'R$ 3.500,00',
+    valorPago: 'R$ 280,00',
+    valorAberto: 'R$ 3.220,00',
+    valorVencido: 'R$ 690,00',
+    parcelasVencidas: 3,
+    parcelasAberto: 14,
+    smartAluno: 'Cadastrado',
+    smartTitular: 'Cadastrado',
+    linkPagamentoF10: 'https://r.f10.com.br/HCTYNT',
+    idade: 14,
+    sexo: 'F'
+  }),
+
+  // 3. Q2: Risco Crítico de Evasão (Faltas >= 3, Ativo, Sem atraso financeiro vencido)
   createMatricula({
     contrato: '2.333',
     alunoNome: 'Darfiny Josiane da Silva',
@@ -239,52 +264,29 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     sexo: 'F'
   }),
   createMatricula({
-    contrato: '2.381',
-    alunoNome: 'José Wellington de Arruda Ferreira',
-    statusContrato: 'Aguardando',
-    telefonePrincipal: '(81) 99513-4132',
-    bairro: 'Alto do Moura',
-    rawTurma: 'Pm.713-1 - Raphael Nonato',
-    dataMatricula: '24/08/2026',
-    dataInicio: '29/08/2026',
-    ultimaFalta: '10/10/2026',
-    faltasTotais: 6,
+    contrato: '2.346',
+    alunoNome: 'Jeferson Yan Silva de Freitas',
+    statusContrato: 'Ativo',
+    telefonePrincipal: '(81) 98903-8321',
+    bairro: 'Brejo da Madre de Deus',
+    rawTurma: 'Pm.707-1 - Raphael Nonato',
+    dataMatricula: '17/07/2026',
+    dataInicio: '18/07/2026',
+    ultimaFalta: '18/07/2026',
+    faltasTotais: 10,
     origemContratoF10: 'Venda',
-    valorTotal: 'R$ 1.875,00',
+    valorTotal: 'R$ 1.770,00',
     valorPago: 'R$ 265,00',
-    valorAberto: 'R$ 1.610,00',
+    valorAberto: 'R$ 1.505,00',
     parcelasAberto: 7,
-    smartAluno: 'Cadastrado',
+    smartAluno: 'Acesso em 14/09/26',
     smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/JV3ILX',
-    idade: 32,
-    sexo: 'M'
-  }),
-  createMatricula({
-    contrato: '2.335',
-    alunoNome: 'Ícaro Kauan Lima Peixoto',
-    statusContrato: 'Aguardando',
-    telefonePrincipal: '(81) 98308-7748',
-    bairro: 'Beira Rio',
-    rawTurma: 'Pm.35-1 - Raphael Nonato,Pm.707-1 - Raphael Nonato',
-    dataMatricula: '09/07/2026',
-    dataInicio: '11/07/2026',
-    ultimaPresenca: '21/07/2026',
-    ultimaFalta: '17/10/2026',
-    faltasTotais: 24,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 1.810,00',
-    valorPago: 'R$ 430,00',
-    valorAberto: 'R$ 1.380,00',
-    parcelasAberto: 6,
-    smartAluno: 'Acesso em 10/07/26',
-    smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/AC4WG3',
-    idade: 23,
+    linkPagamentoF10: 'https://r.f10.com.br/RJYHV1',
+    idade: 28,
     sexo: 'M'
   }),
 
-  // 3. Q3: Aguardando Cancelamento (Especialmente os Quitados com Risco de Estorno!)
+  // 4. Q3: Aguardando Cancelamento (Retenção)
   createMatricula({
     contrato: '2.355',
     alunoNome: 'Gael Oliveira Santos',
@@ -328,27 +330,6 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     sexo: 'M'
   }),
   createMatricula({
-    contrato: '2.390',
-    alunoNome: 'Nicolas Pietro de Oliveira Mota',
-    statusContrato: 'Aguardando',
-    telefonePrincipal: '(81) 98925-7219',
-    bairro: 'Vila Nova/ Altinho',
-    rawTurma: 'Mirim.35-3 - Raphael Nonato',
-    dataMatricula: '08/09/2026',
-    ultimaPresenca: '06/10/2026',
-    ultimaFalta: '01/10/2026',
-    faltasTotais: 0,
-    origemContratoF10: 'A.V',
-    valorTotal: 'R$ 3.360,00',
-    valorPago: 'R$ 3.360,00',
-    valorAberto: 'R$ 0,00',
-    smartAluno: 'Não Cadastrado',
-    smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/VKLZFQ',
-    idade: 7,
-    sexo: 'M'
-  }),
-  createMatricula({
     contrato: '2.344',
     alunoNome: 'Henrique Bruno Basilio Alves',
     statusContrato: 'Aguardando',
@@ -371,7 +352,7 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     sexo: 'M'
   }),
 
-  // 4. Q4: Regular / Saudável
+  // 5. Q4: Regular / Saudável
   createMatricula({
     contrato: '2.415',
     alunoNome: 'Everly Beatriz de Almeida Carvalho',
@@ -434,49 +415,5 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     linkPagamentoF10: 'https://r.f10.com.br/SHAVIM',
     idade: 8,
     sexo: 'F'
-  }),
-  createMatricula({
-    contrato: '2.372',
-    alunoNome: 'Ana Sofia da Silva',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 99118-2481',
-    bairro: 'Caiuca',
-    rawTurma: 'Ad.2402-1 - Raphael Nonato,Epcar-707-1 - Dayana Silva',
-    dataMatricula: '17/08/2026',
-    dataInicio: '22/08/2026',
-    ultimaPresenca: '17/10/2026',
-    ultimaFalta: '10/10/2026',
-    faltasTotais: 0,
-    origemContratoF10: 'S.A.V',
-    valorTotal: 'R$ 3.120,00',
-    valorPago: 'R$ 3.120,00',
-    valorAberto: 'R$ 0,00',
-    smartAluno: 'Cadastrado',
-    smartTitular: 'Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/VUPXMJ',
-    idade: 0,
-    sexo: 'F'
-  }),
-  createMatricula({
-    contrato: '2.383',
-    alunoNome: 'Hugo Jadson Pereira Calixto',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 99445-5733',
-    bairro: 'Rendeiras',
-    rawTurma: 'Ad.713-1 - Raphael Nonato,Epcar-707-1 - Dayana Silva',
-    dataMatricula: '26/08/2026',
-    dataInicio: '02/09/2026',
-    ultimaPresenca: '17/10/2026',
-    faltasTotais: 0,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 4.385,00',
-    valorPago: 'R$ 1.205,00',
-    valorAberto: 'R$ 3.180,00',
-    parcelasAberto: 12,
-    smartAluno: 'Não Cadastrado',
-    smartTitular: 'Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/2I5BYK',
-    idade: 0,
-    sexo: 'M'
   })
 ];
