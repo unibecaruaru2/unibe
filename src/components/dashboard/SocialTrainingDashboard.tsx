@@ -29,7 +29,23 @@ import {
 export const SocialTrainingDashboard: React.FC = () => {
   // Navigation & UI States
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('unibe_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('unibe_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Data States (Operação 100% com Dados Reais do Supabase)
   const [students, setStudents] = useState<Student[]>([]);
@@ -405,6 +421,7 @@ export const SocialTrainingDashboard: React.FC = () => {
         currentPath={currentRoute}
         onNavigate={setCurrentRoute}
         collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
       {/* Main Container */}
@@ -414,10 +431,12 @@ export const SocialTrainingDashboard: React.FC = () => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenEnrollmentModal={() => setIsEnrollmentOpen(true)}
+          onToggleSidebar={toggleSidebar}
+          isSidebarCollapsed={sidebarCollapsed}
         />
 
         {/* 3. Dedicated Route View (No clutter, single task focus) */}
-        <main className="p-6 sm:p-8 flex-1">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1">
           {renderCurrentRouteView()}
         </main>
       </div>

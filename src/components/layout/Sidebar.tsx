@@ -7,26 +7,28 @@ import {
   Award, 
   Settings, 
   GraduationCap, 
-  Sparkles,
-  ChevronRight,
-  LogOut,
-  HelpCircle
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarProps {
   currentPath?: string;
   onNavigate?: (path: string) => void;
   collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   currentPath = 'dashboard', 
   onNavigate,
-  collapsed = false 
+  collapsed = false,
+  onToggleCollapse
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard },
-    { id: 'attendance', label: 'Chamada de Sábado', icon: CalendarDays, badge: '4 Sábados' },
+    { id: 'attendance', label: 'Chamada de Sábado', icon: CalendarDays, badge: '4 Aulas' },
     { id: 'students', label: 'Alunos & Matrículas', icon: Users },
     { id: 'whatsapp', label: 'WhatsApp & Contatos', icon: MessageSquare },
     { id: 'certificates', label: 'Certificação Oficial', icon: Award },
@@ -35,35 +37,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside 
-      className={`bg-[#0B192C] text-slate-300 flex flex-col h-screen sticky top-0 transition-all duration-300 z-30 select-none border-r border-slate-800/80 ${
-        collapsed ? 'w-20' : 'w-64 lg:w-72'
+      className={`bg-[#0B192C] text-slate-300 flex flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out z-30 select-none border-r border-slate-800/80 shrink-0 ${
+        collapsed ? 'w-[72px]' : 'w-64'
       }`}
     >
-      {/* Brand Header */}
-      <div className="p-5 flex items-center gap-3 border-b border-slate-800/60">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-2 ring-white/10 shrink-0">
-          <GraduationCap className="w-6 h-6" />
-        </div>
-        {!collapsed && (
-          <div className="flex flex-col overflow-hidden">
-            <span className="font-bold text-lg tracking-wider text-white flex items-center gap-1.5 font-sans">
-              UNIBE
-              <span className="text-[10px] bg-blue-500/20 text-blue-400 font-semibold px-1.5 py-0.5 rounded border border-blue-500/30">
-                PRO
-              </span>
-            </span>
-            <span className="text-xs text-slate-400 truncate">
-              Treinamento Social
-            </span>
+      {/* Brand Header + Collapse Toggle Button */}
+      <div className={`p-4 flex items-center border-b border-slate-800/60 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-600/30 shrink-0">
+            <GraduationCap className="w-5 h-5" />
           </div>
+          {!collapsed && (
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-base tracking-wider text-white flex items-center gap-1.5 font-sans leading-none">
+                UNIBE
+                <span className="text-[10px] bg-blue-500/20 text-blue-400 font-semibold px-1.5 py-0.5 rounded border border-blue-500/30">
+                  PRO
+                </span>
+              </span>
+              <span className="text-[11px] text-slate-400 truncate mt-1">
+                Treinamento Social
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Toggle Collapse Button in Header */}
+        {!collapsed && onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
+            title="Recolher barra lateral"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         )}
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-2.5 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         {!collapsed && (
-          <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-            Menu Principal
+          <div className="px-3 pb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            Menu
           </div>
         )}
 
@@ -75,24 +90,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.id}
               onClick={() => onNavigate?.(item.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-left relative cursor-pointer ${
+              className={`w-full flex items-center rounded-xl text-xs font-medium transition-all duration-150 group text-left relative cursor-pointer ${
+                collapsed 
+                  ? 'justify-center py-3 px-0' 
+                  : 'gap-3 px-3 py-2.5'
+              } ${
                 isActive 
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-semibold' 
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                  ? 'bg-blue-600 text-white font-semibold shadow-sm' 
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'
               }`}
               title={collapsed ? item.label : undefined}
             >
               <Icon 
-                className={`w-5 h-5 transition-transform duration-200 ${
+                className={`w-4 h-4 shrink-0 transition-transform duration-150 ${
                   isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400'
                 }`} 
               />
               
               {!collapsed && (
-                <div className="flex-1 flex items-center justify-between">
+                <div className="flex-1 flex items-center justify-between min-w-0">
                   <span className="truncate">{item.label}</span>
                   {item.badge && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                       isActive 
                         ? 'bg-white/20 text-white' 
                         : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'
@@ -107,29 +126,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Footer Motivational Card & User Pill */}
-      {!collapsed && (
-        <div className="p-4 m-3 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0e213b] border border-slate-800/90 shadow-inner">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold text-white tracking-wide">
-              Ciclo de 4 Aulas
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
-            Programa social com certificação condicionada a 100% de assiduidade.
-          </p>
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-            <span>Carga: <strong>16 horas</strong></span>
-            <span className="text-blue-400 font-semibold">100% Presença</span>
-          </div>
-        </div>
-      )}
-
-      {/* Operator Profile */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0">
+      {/* Bottom Footer: Operator Profile & Collapsed Toggle Button */}
+      <div className="p-2.5 border-t border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
+        <div className={`flex items-center gap-2.5 overflow-hidden ${collapsed ? 'justify-center w-full' : ''}`}>
+          <div className="w-8 h-8 rounded-lg bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-white/10 shrink-0">
             AD
           </div>
           {!collapsed && (
@@ -143,6 +143,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </div>
+
+        {/* Expand Button when collapsed */}
+        {collapsed && onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="hidden"
+            title="Expandir menu"
+          />
+        )}
+      </div>
+
+      {/* Dedicated Expand/Collapse bar at the very bottom */}
+      <div className="p-2 border-t border-slate-800/60 bg-slate-950/70">
+        <button
+          onClick={onToggleCollapse}
+          className={`w-full py-2 flex items-center justify-center gap-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer`}
+          title={collapsed ? "Expandir barra lateral" : "Recolher barra lateral"}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="w-4 h-4 text-blue-400" />
+          ) : (
+            <>
+              <PanelLeftClose className="w-4 h-4 text-slate-400" />
+              <span className="text-[11px] font-medium">Recolher menu</span>
+            </>
+          )}
+        </button>
       </div>
     </aside>
   );
