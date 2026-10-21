@@ -49,20 +49,19 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Header Actions & Info */}
       <div className="flex items-center gap-3 lg:gap-5">
-        {/* WhatsApp Service Status Pill */}
+        {/* Supabase Cloud Live Status Pill */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Disparador WhatsApp: <strong>Ativo</strong></span>
+          <span>Supabase: <strong>Conectado</strong></span>
         </div>
 
         {/* Current Date Badge */}
         <div className="hidden sm:flex items-center gap-2 text-slate-500 text-xs font-medium px-3 py-1.5 bg-slate-100/70 rounded-xl border border-slate-200/60">
           <Calendar className="w-3.5 h-3.5 text-slate-400" />
-          <span>Sábado Letivo em <strong>3 dias</strong> (24/10)</span>
+          <span>Hoje: <strong>{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</strong></span>
         </div>
 
         {/* Notifications */}

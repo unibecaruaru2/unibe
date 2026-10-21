@@ -150,7 +150,20 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filtered.map((student) => {
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 px-6 text-center">
+                    <div className="max-w-xs mx-auto space-y-2">
+                      <Award className="w-8 h-8 text-slate-300 mx-auto" />
+                      <h4 className="font-bold text-slate-800 text-sm">Nenhum certificado para exibir</h4>
+                      <p className="text-xs text-slate-400">
+                        Os alunos matriculados que atingirem 100% de frequência aparecerão listados aqui para liberação do certificado.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((student) => {
                 const absences = student.attendance.filter(a => a.status === 'falta').length;
                 const presences = student.attendance.filter(a => a.status === 'presente').length;
                 const is100 = presences === 4 && absences === 0;
@@ -241,7 +254,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

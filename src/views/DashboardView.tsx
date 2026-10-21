@@ -74,6 +74,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 4 Pastel KPI Cards */}
       <KpiCards kpis={kpis} />
 
+      {/* Empty State Banner if no students yet */}
+      {students.length === 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-4 text-left">
+            <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Banco de Dados Supabase Liberado e Pronto</h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Nenhum dado mockado ativo. Inicie o registro dos alunos reais clicando no botão ao lado.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenEnrollment}
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+          >
+            + Cadastrar Primeiro Aluno
+          </button>
+        </div>
+      )}
+
       {/* 2-Column Clean Summary Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Next Saturday Focus Card */}

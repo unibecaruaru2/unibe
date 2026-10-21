@@ -145,7 +145,20 @@ export const WhatsAppView: React.FC<WhatsAppViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {filteredStudents.map((student) => {
+                  {filteredStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 px-6 text-center">
+                        <div className="max-w-xs mx-auto space-y-2">
+                          <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
+                          <h4 className="font-bold text-slate-800 text-sm">Nenhum contato na fila</h4>
+                          <p className="text-xs text-slate-400">
+                            Cadastre alunos para gerenciar os disparos e confirmações do WhatsApp.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStudents.map((student) => {
                     const phone = student.guardian ? student.guardian.phone : student.phone;
 
                     return (
@@ -202,7 +215,7 @@ export const WhatsAppView: React.FC<WhatsAppViewProps> = ({
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>

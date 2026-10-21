@@ -131,7 +131,31 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filtered.map((student) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-6 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <h4 className="font-bold text-slate-900 text-base">Nenhum aluno encontrado</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        {search 
+                          ? 'Nenhum resultado corresponde à sua busca. Tente buscar por outro termo ou limpe o filtro.'
+                          : 'O banco de dados está pronto para receber os alunos reais. Clique no botão abaixo para realizar a primeira matrícula.'}
+                      </p>
+                      <button
+                        onClick={onOpenEnrollment}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>+ Nova Matrícula</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                   {/* Student */}
                   <td className="py-4 px-5">
@@ -222,7 +246,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

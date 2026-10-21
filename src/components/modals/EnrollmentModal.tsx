@@ -39,13 +39,13 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
   const [studentName, setStudentName] = useState('');
   const [guardianName, setGuardianName] = useState('');
   const [guardianPhone, setGuardianPhone] = useState('');
-  const [enrollmentDate, setEnrollmentDate] = useState<string>('2026-10-21'); // Current date
+  const [enrollmentDate, setEnrollmentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   
   // Auxiliary fields
   const [shift, setShift] = useState<ShiftType>('manha');
   const [guardianRelationship, setGuardianRelationship] = useState<'Mae' | 'Pai' | 'Avo' | 'Tutor' | 'Outro'>('Mae');
   const [studentPhone, setStudentPhone] = useState('');
-  const [birthDate, setBirthDate] = useState('2008-04-10');
+  const [birthDate, setBirthDate] = useState('2009-01-15');
   const [classroom, setClassroom] = useState('Laboratório Inovação Social - Sala 102');
 
   // Dynamic automatic calculation of the 4 consecutive Saturdays from Enrollment Date

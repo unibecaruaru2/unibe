@@ -17,8 +17,7 @@ import {
   AttendanceStatus, 
   WhatsAppContactStatusType 
 } from '../../types';
-import { mockStudents, defaultKpis } from '../../data/mockData';
-import { evaluateCertificateEligibility } from '../../lib/social-training';
+import { evaluateCertificateEligibility, calculateFourSaturdays, formatDateIso } from '../../lib/social-training';
 import { 
   fetchStudentsFromSupabase, 
   updateAttendanceInSupabase, 
@@ -32,11 +31,19 @@ export const SocialTrainingDashboard: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Data States
-  const [students, setStudents] = useState<Student[]>(mockStudents);
+  // Data States (Operação 100% com Dados Reais do Supabase)
+  const [students, setStudents] = useState<Student[]>([]);
   const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
   const [dbSyncStatus, setDbSyncStatus] = useState<'synced' | 'connecting' | 'fallback'>('connecting');
-  const [selectedSaturday, setSelectedSaturday] = useState<string>('2026-10-24');
+  const [selectedSaturday, setSelectedSaturday] = useState<string>(() => {
+    try {
+      const todayIso = new Date().toISOString().split('T')[0];
+      const dates = calculateFourSaturdays(todayIso, { includeSameDaySaturday: true });
+      return formatDateIso(dates[0]);
+    } catch {
+      return '2026-10-24';
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch real data from Supabase on mount
@@ -46,12 +53,8 @@ export const SocialTrainingDashboard: React.FC = () => {
       try {
         const remoteStudents = await fetchStudentsFromSupabase();
         if (isMounted) {
-          if (remoteStudents && remoteStudents.length > 0) {
-            setStudents(remoteStudents);
-            setDbSyncStatus('synced');
-          } else {
-            setDbSyncStatus('fallback');
-          }
+          setStudents(remoteStudents || []);
+          setDbSyncStatus('synced');
         }
       } catch (err) {
         console.warn('Erro ao carregar dados do Supabase:', err);
@@ -72,12 +75,30 @@ export const SocialTrainingDashboard: React.FC = () => {
   const [selectedStudentForCert, setSelectedStudentForCert] = useState<Student | null>(null);
   const [isCertOpen, setIsCertOpen] = useState(false);
 
-  // Available Saturdays in active cycle
+  // Available Saturdays calculated dynamically from real student cycles or current calendar
   const availableSaturdays = useMemo(() => {
-    return ['2026-10-03', '2026-10-10', '2026-10-17', '2026-10-24'];
-  }, []);
+    const set = new Set<string>();
+    students.forEach(s => s.saturdays.forEach(d => { if (d) set.add(d); }));
+    if (set.size > 0) {
+      return Array.from(set).sort();
+    }
+    try {
+      const todayIso = new Date().toISOString().split('T')[0];
+      const dates = calculateFourSaturdays(todayIso, { includeSameDaySaturday: true });
+      return dates.map(d => formatDateIso(d));
+    } catch {
+      return ['2026-10-24', '2026-10-31', '2026-11-07', '2026-11-14'];
+    }
+  }, [students]);
 
-  // Recalculate KPIs dynamically
+  // Keep selectedSaturday aligned with available list
+  useEffect(() => {
+    if (availableSaturdays.length > 0 && !availableSaturdays.includes(selectedSaturday)) {
+      setSelectedSaturday(availableSaturdays[0]);
+    }
+  }, [availableSaturdays, selectedSaturday]);
+
+  // Recalculate KPIs dynamically from 100% real data
   const dynamicKpis: DashboardKpis = useMemo(() => {
     const totalStudents = students.length;
     const morningCount = students.filter(s => s.shift === 'manha').length;
@@ -91,11 +112,11 @@ export const SocialTrainingDashboard: React.FC = () => {
         if (a.status === 'presente' || a.status === 'falta') totalRecorded++;
       });
     });
-    const attendancePercentage = totalRecorded > 0 ? Math.round((totalPresent / totalRecorded) * 100) : 92;
+    const attendancePercentage = totalRecorded > 0 ? Math.round((totalPresent / totalRecorded) * 100) : 0;
 
     const confirmedCount = students.filter(s => s.whatsappStatus === 'confirmado').length;
     const pendingContact = students.filter(s => s.whatsappStatus !== 'confirmado').length;
-    const confirmedRate = totalStudents > 0 ? Math.round((confirmedCount / totalStudents) * 100) : 85;
+    const confirmedRate = totalStudents > 0 ? Math.round((confirmedCount / totalStudents) * 100) : 0;
 
     const eligibleForCert = students.filter(
       s => s.attendance.filter(a => a.status === 'presente').length === 4
@@ -106,24 +127,24 @@ export const SocialTrainingDashboard: React.FC = () => {
         total: totalStudents,
         shiftMorning: morningCount,
         shiftAfternoon: afternoonCount,
-        trendPercentage: 12
+        trendPercentage: 0
       },
       overallAttendanceRate: {
         percentage: attendancePercentage,
         presentCount: totalPresent,
-        totalExpected: totalRecorded || 48,
-        trendPercentage: 4
+        totalExpected: totalRecorded,
+        trendPercentage: 0
       },
       whatsappConfirmations: {
         confirmedRate,
         confirmedCount,
         pendingCount: pendingContact,
-        trendPercentage: 18
+        trendPercentage: 0
       },
       completedCertificates: {
         totalReadyOrIssued: eligibleForCert,
         issuedThisMonth: students.filter(s => s.certificate.status === 'pago_liberado').length,
-        trendPercentage: 25
+        trendPercentage: 0
       }
     };
   }, [students]);

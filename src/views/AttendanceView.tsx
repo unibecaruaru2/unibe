@@ -169,7 +169,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredStudents.map((student) => {
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-6 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto border border-slate-200">
+                        <Calendar className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <h4 className="font-bold text-slate-900 text-base">Nenhum aluno agendado</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Nenhum aluno possui aula marcada para este sábado ou nenhum aluno foi matriculado ainda.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map((student) => {
                 const lessonNum = lessonNumberForSaturday(student);
                 const currentRec = student.attendance.find(a => a.lessonNumber === lessonNum);
                 const currentStatus = currentRec ? currentRec.status : 'pendente';
@@ -323,7 +338,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>
