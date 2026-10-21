@@ -4,6 +4,7 @@ import { Header } from '../layout/Header';
 import { DashboardView } from '../../views/DashboardView';
 import { AttendanceView } from '../../views/AttendanceView';
 import { StudentsView } from '../../views/StudentsView';
+import { F10AcademicView } from '../../views/F10AcademicView';
 import { WhatsAppView } from '../../views/WhatsAppView';
 import { CertificatesView } from '../../views/CertificatesView';
 import { SettingsView } from '../../views/SettingsView';
@@ -408,6 +409,9 @@ export const SocialTrainingDashboard: React.FC = () => {
             onDeleteStudent={handleDeleteStudent}
           />
         );
+
+      case 'f10-academic':
+        return <F10AcademicView />;
 
       case 'whatsapp':
         return (
