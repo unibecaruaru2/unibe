@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sidebar } from '../layout/Sidebar';
 import { Header } from '../layout/Header';
 import { DashboardView } from '../../views/DashboardView';
@@ -19,6 +19,13 @@ import {
 } from '../../types';
 import { mockStudents, defaultKpis } from '../../data/mockData';
 import { evaluateCertificateEligibility } from '../../lib/social-training';
+import { 
+  fetchStudentsFromSupabase, 
+  updateAttendanceInSupabase, 
+  updateCertificatePaymentInSupabase, 
+  logWhatsAppSentInSupabase, 
+  createEnrollmentInSupabase 
+} from '../../lib/supabase';
 
 export const SocialTrainingDashboard: React.FC = () => {
   // Navigation & UI States
@@ -27,8 +34,36 @@ export const SocialTrainingDashboard: React.FC = () => {
 
   // Data States
   const [students, setStudents] = useState<Student[]>(mockStudents);
+  const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
+  const [dbSyncStatus, setDbSyncStatus] = useState<'synced' | 'connecting' | 'fallback'>('connecting');
   const [selectedSaturday, setSelectedSaturday] = useState<string>('2026-10-24');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch real data from Supabase on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFromSupabase() {
+      try {
+        const remoteStudents = await fetchStudentsFromSupabase();
+        if (isMounted) {
+          if (remoteStudents && remoteStudents.length > 0) {
+            setStudents(remoteStudents);
+            setDbSyncStatus('synced');
+          } else {
+            setDbSyncStatus('fallback');
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar dados do Supabase:', err);
+        if (isMounted) setDbSyncStatus('fallback');
+      } finally {
+        if (isMounted) setIsLoadingDb(false);
+      }
+    }
+
+    loadFromSupabase();
+    return () => { isMounted = false; };
+  }, []);
 
   // Modal States
   const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(false);
@@ -93,8 +128,10 @@ export const SocialTrainingDashboard: React.FC = () => {
     };
   }, [students]);
 
-  // Attendance Toggle with Strict Certification Evaluation
+  // Attendance Toggle with Strict Certification Evaluation + Supabase sync
   const handleToggleAttendance = (studentId: string, lessonNumber: 1 | 2 | 3 | 4) => {
+    let nextAttendanceStatus: AttendanceStatus = 'presente';
+
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
@@ -107,6 +144,7 @@ export const SocialTrainingDashboard: React.FC = () => {
           else if (rec.status === 'falta') nextStatus = 'pendente';
           else nextStatus = 'presente';
 
+          nextAttendanceStatus = nextStatus;
           return { ...rec, status: nextStatus };
         });
 
@@ -138,14 +176,22 @@ export const SocialTrainingDashboard: React.FC = () => {
         };
       })
     );
+
+    // Sync to Supabase in background
+    updateAttendanceInSupabase(studentId, lessonNumber, nextAttendanceStatus).catch(err => {
+      console.warn('Sync de presença falhou (Supabase):', err);
+    });
   };
 
-  // Toggle or confirm payment for student certificate fee (Pure organizational toggle)
+  // Toggle or confirm payment for student certificate fee (Pure organizational toggle) + Supabase sync
   const handleToggleFeePayment = (studentId: string) => {
+    let targetPaid = false;
+
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
         const newPaid = !student.certificate.feePaid;
+        targetPaid = newPaid;
         const presences = student.attendance.filter(a => a.status === 'presente').length;
         const isEligible = presences === 4;
 
@@ -163,12 +209,28 @@ export const SocialTrainingDashboard: React.FC = () => {
         };
       })
     );
+
+    // Sync to Supabase in background
+    updateCertificatePaymentInSupabase(studentId, targetPaid).catch(err => {
+      console.warn('Sync de pagamento da taxa falhou (Supabase):', err);
+    });
   };
 
-  // Handle WhatsApp Status Update
+  // Handle WhatsApp Status Update + Supabase log
   const handleUpdateWhatsAppStatus = (studentId: string, status: WhatsAppContactStatusType) => {
     setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, whatsappStatus: status } : s))
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        // Sync to Supabase log
+        logWhatsAppSentInSupabase(
+          studentId,
+          s.guardian?.phone || s.phone,
+          `Contato via WhatsApp atualizado para: ${status}`,
+          status === 'confirmado' ? 'confirmado' : 'mensagem_enviada'
+        ).catch(console.warn);
+
+        return { ...s, whatsappStatus: status };
+      })
     );
   };
 
@@ -184,9 +246,31 @@ export const SocialTrainingDashboard: React.FC = () => {
     setIsCertOpen(true);
   };
 
-  // Handle New Student Enrollment
-  const handleEnrollStudent = (newStudentData: Partial<Student>) => {
+  // Handle New Student Enrollment + Supabase insertion
+  const handleEnrollStudent = async (newStudentData: Partial<Student>) => {
     const saturdays = newStudentData.saturdays || ['2026-10-24', '2026-10-31', '2026-11-07', '2026-11-14'];
+    
+    // Try to persist to Supabase
+    try {
+      const createdStudent = await createEnrollmentInSupabase({
+        studentName: newStudentData.name || 'Novo Aluno',
+        guardianName: newStudentData.guardian?.name || 'Responsável Legal',
+        guardianPhone: newStudentData.guardian?.phone || '11999999999',
+        guardianRelationship: newStudentData.guardian?.relationship || 'Mãe',
+        shift: newStudentData.shift || 'manha',
+        enrollmentDate: newStudentData.enrollmentDate || new Date().toISOString().split('T')[0],
+        saturdays
+      });
+
+      if (createdStudent) {
+        setStudents((prev) => [createdStudent, ...prev]);
+        return;
+      }
+    } catch (err) {
+      console.warn('Erro ao salvar no Supabase, aplicando localmente:', err);
+    }
+
+    // Fallback local
     const newStudent: Student = {
       id: `std-${Date.now()}`,
       registrationNumber: `UNB-2026-00${students.length + 1}`,
@@ -219,7 +303,7 @@ export const SocialTrainingDashboard: React.FC = () => {
       createdAt: new Date().toISOString()
     };
 
-    setStudents([newStudent, ...students]);
+    setStudents((prev) => [newStudent, ...prev]);
   };
 
   // Render Active Route Component

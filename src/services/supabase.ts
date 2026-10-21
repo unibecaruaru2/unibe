@@ -10,10 +10,8 @@ export const isSupabaseConfigured = Boolean(
   !supabaseUrl.includes('placeholder')
 );
 
-// Instantiate Supabase Client (safe fallback if not configured yet)
-export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+// Instantiate Supabase Client
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface SupabaseConfigStatus {
   isConfigured: boolean;

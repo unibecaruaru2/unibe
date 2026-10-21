@@ -12,8 +12,13 @@ dist
 .env.development.local
 .env.test.local
 .env.production.local
+.env*
+
+# Scripts with direct admin tokens
+scripts/
 
 # Editor & OS files
 .DS_Store
 Thumbs.db
 *.log
+.vercel
