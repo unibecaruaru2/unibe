@@ -11,7 +11,8 @@ import {
   PanelLeftOpen,
   ChevronLeft,
   ChevronRight,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ShieldAlert
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard },
     { id: 'attendance', label: 'Chamada de Sábado', icon: CalendarDays, badge: '4 Aulas' },
     { id: 'students', label: 'Alunos & Matrículas', icon: Users },
-    { id: 'f10-academic', label: 'Ingestão F10 / Acadêmico', icon: FileSpreadsheet, badge: 'ERP' },
+    { id: 'f10-academic', label: 'Prevenção & Evasão F10', icon: ShieldAlert, badge: 'Risco' },
     { id: 'whatsapp', label: 'WhatsApp & Contatos', icon: MessageSquare },
     { id: 'certificates', label: 'Certificação Oficial', icon: Award },
     { id: 'settings', label: 'Configurações', icon: Settings },

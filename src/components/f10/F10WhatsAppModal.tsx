@@ -1,38 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, MessageSquare, Copy, Check, ExternalLink } from 'lucide-react';
+import { X, Send, MessageSquare, Copy, Check, ExternalLink, ShieldAlert, AlertTriangle, UserX, HeartHandshake } from 'lucide-react';
 import { MatriculaAcademicaF10 } from '../../types/f10';
 
 interface F10WhatsAppModalProps {
   isOpen: boolean;
   onClose: () => void;
   matricula: MatriculaAcademicaF10 | null;
+  defaultMode?: 'COBRANCA' | 'RESGATE_PEDAGOGICO' | 'RETENCAO' | 'BOAS_VINDAS';
 }
 
 export const F10WhatsAppModal: React.FC<F10WhatsAppModalProps> = ({
   isOpen,
   onClose,
-  matricula
+  matricula,
+  defaultMode
 }) => {
+  const [activeTemplate, setActiveTemplate] = useState<'COBRANCA' | 'RESGATE_PEDAGOGICO' | 'RETENCAO' | 'BOAS_VINDAS'>('COBRANCA');
   const [message, setMessage] = useState('');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!matricula) return;
 
-    const isQuitado = matricula.regime === 'QUITADO';
-    const turmasStr = matricula.turmas.map(t => `${t.codigoTurma} (Prof. ${t.professor})`).join(' e ');
-    const linkF10 = matricula.linkPagamentoF10 ? `\n\n📌 *Link de Acesso ao Carnê/Parcelas F10:*\n${matricula.linkPagamentoF10}` : '';
+    // Define template inicial baseado no quadrante ou no defaultMode
+    if (defaultMode) {
+      setActiveTemplate(defaultMode);
+    } else if (matricula.quadranteRisco === 'Q1_OVERDUE_ATTENDING') {
+      setActiveTemplate('COBRANCA');
+    } else if (matricula.quadranteRisco === 'Q2_ABSENT_CHURN') {
+      setActiveTemplate('RESGATE_PEDAGOGICO');
+    } else if (matricula.quadranteRisco === 'Q3_WAITING_CANCEL') {
+      setActiveTemplate('RETENCAO');
+    } else {
+      setActiveTemplate('BOAS_VINDAS');
+    }
+  }, [matricula, defaultMode]);
+
+  useEffect(() => {
+    if (!matricula) return;
+
+    const turmasStr = matricula.turmasCanonicas.join(' e ') || matricula.turmas.map(t => t.codigoTurma).join(' e ');
+    const linkF10 = matricula.linkPagamentoF10 ? `\n\n📌 *Link Seguro da Fatura/Parcela F10:*\n${matricula.linkPagamentoF10}` : '';
 
     let template = '';
-    if (isQuitado) {
-      template = `Olá, ${matricula.alunoNome}! Tudo bem?\n\nConfirmamos com sucesso a sua matrícula na UNIBE no curso/turma *${turmasStr}*.\n\nIdentificamos que seu curso encontra-se *Quitado (À Vista)*, garantindo sua liberação imediata para certificado e histórico após a conclusão das atividades pedagógicas.\n\nSeja muito bem-vindo(a)! Qualquer dúvida estamos à disposição por aqui.`;
-    } else {
-      template = `Olá, ${matricula.alunoNome}! Tudo bem?\n\nConfirmamos com sucesso a sua matrícula na UNIBE no curso/turma *${turmasStr}*.\n\nPara acompanhar seus vencimentos e parcelas do carnê escolar, você pode acessar seu portal diretamente pelo link oficial do F10:${linkF10}\n\nFicamos à disposição para qualquer suporte pedagógico ou financeiro!`;
+
+    switch (activeTemplate) {
+      case 'COBRANCA':
+        // Template A: Inadimplente Frequente (Discreto e Facilitador)
+        template = `Olá! Tudo bem? Vimos que ${matricula.alunoNome} está participando das aulas na turma *${turmasStr}* na UNIBE.\n\nPara facilitar o fechamento do mês e manter o acesso regular, segue o link seguro para regularizar a parcela em aberto:${linkF10}\n\nQualquer dúvida sobre a fatura ou comprovante, estamos à inteira disposição!`;
+        break;
+
+      case 'RESGATE_PEDAGOGICO':
+        // Template B: Risco de Abandono (Faltoso Recorrente)
+        template = `Olá! Sentimos a falta de ${matricula.alunoNome} nas últimas aulas da turma *${turmasStr}* na UNIBE.\n\nAconteceu algum imprevisto? Queremos agendar uma reposição gratuita de conteúdo para que ele(a) não perca o ritmo da turma.\n\nPodemos conversar sobre o melhor dia para a reposição?`;
+        break;
+
+      case 'RETENCAO':
+        // Template C: Aguardando Cancelamento (Retenção / Negociação)
+        template = `Olá! Recebemos a manifestação referente à matrícula de ${matricula.alunoNome} na UNIBE.\n\nAntes de formalizarmos qualquer baixa, gostaríamos de entender o motivo e propor uma solução (mudança de turno, trancamento temporário por 30 dias ou revisão de parcela).\n\nVamos agendar uma conversa rápida hoje para não interromper a trajetória acadêmica?`;
+        break;
+
+      case 'BOAS_VINDAS':
+      default:
+        template = `Olá, ${matricula.alunoNome}! Tudo bem?\n\nConfirmamos com sucesso a sua matrícula na UNIBE na turma *${turmasStr}*.\n\nSeja muito bem-vindo(a)! Qualquer dúvida sobre horários e material, estamos à disposição por aqui.`;
+        break;
     }
 
     setMessage(template);
     setCopied(false);
-  }, [matricula]);
+  }, [matricula, activeTemplate]);
 
   if (!isOpen || !matricula) return null;
 
@@ -60,7 +96,7 @@ export const F10WhatsAppModal: React.FC<F10WhatsAppModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Mensagem WhatsApp Contextual
+                Disparador WhatsApp Estratégico
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {matricula.alunoNome} • {matricula.telefonePrincipal}
@@ -75,15 +111,43 @@ export const F10WhatsAppModal: React.FC<F10WhatsAppModalProps> = ({
           </button>
         </div>
 
+        {/* Seletor de Templates Dinâmicos */}
+        <div className="p-3 bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-100 dark:border-slate-800 flex flex-wrap gap-1.5">
+          {[
+            { id: 'COBRANCA', label: 'Cobrança c/ Link F10', icon: ShieldAlert, color: 'text-rose-600' },
+            { id: 'RESGATE_PEDAGOGICO', label: 'Resgate / Reposição', icon: AlertTriangle, color: 'text-amber-600' },
+            { id: 'RETENCAO', label: 'Retenção / Cancelamento', icon: UserX, color: 'text-purple-600' },
+            { id: 'BOAS_VINDAS', label: 'Boas-Vindas Padrão', icon: HeartHandshake, color: 'text-blue-600' }
+          ].map(t => {
+            const Icon = t.icon;
+            const isSelected = activeTemplate === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTemplate(t.id as any)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : t.color}`} />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Content */}
         <div className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Texto da Mensagem:
+              Texto da Mensagem Contextualizada:
             </span>
             <button
               onClick={handleCopy}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Copiado!' : 'Copiar Texto'}</span>
@@ -100,7 +164,7 @@ export const F10WhatsAppModal: React.FC<F10WhatsAppModalProps> = ({
           {matricula.linkPagamentoF10 && (
             <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/50 flex items-center justify-between text-xs">
               <span className="text-blue-700 dark:text-blue-300 truncate max-w-[280px]">
-                Link F10: {matricula.linkPagamentoF10}
+                Fatura F10: {matricula.linkPagamentoF10}
               </span>
               <a
                 href={matricula.linkPagamentoF10}
@@ -108,7 +172,7 @@ export const F10WhatsAppModal: React.FC<F10WhatsAppModalProps> = ({
                 rel="noreferrer"
                 className="text-blue-600 dark:text-blue-400 hover:underline font-semibold flex items-center gap-1"
               >
-                <span>Testar Link</span>
+                <span>Abrir F10</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
@@ -130,7 +194,7 @@ export const F10WhatsAppModal: React.FC<F10WhatsAppModalProps> = ({
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Abrir no WhatsApp</span>
+            <span>Disparar WhatsApp</span>
           </button>
         </div>
       </div>
