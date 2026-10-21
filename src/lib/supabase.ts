@@ -1,14 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { Student, AttendanceRecord, CertificateInfo, TrainingCycle, WhatsAppContactStatusType } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ijwzwxtfugwvabqlvipa.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_rerKXa81cy7ylheEuqxOsQ_a2ka6ZIU';
 
-export const isSupabaseConfigured = Boolean(
-  import.meta.env.VITE_SUPABASE_URL && 
-  import.meta.env.VITE_SUPABASE_ANON_KEY &&
-  !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
-);
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -16,7 +12,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * Carrega todos os alunos do Supabase com suas relações completas
  */
 export async function fetchStudentsFromSupabase(): Promise<Student[]> {
-  if (!isSupabaseConfigured) return [];
   try {
     const { data: studentsData, error } = await supabase
       .from('students')

@@ -22,3 +22,5 @@ scripts/
 Thumbs.db
 *.log
 .vercel
+
+.vercel

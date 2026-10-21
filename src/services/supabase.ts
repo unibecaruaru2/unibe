@@ -1,14 +1,10 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Configuration from environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Configuration from environment variables or project defaults
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ijwzwxtfugwvabqlvipa.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_rerKXa81cy7ylheEuqxOsQ_a2ka6ZIU';
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  !supabaseUrl.includes('placeholder')
-);
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 // Instantiate Supabase Client
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
