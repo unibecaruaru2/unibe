@@ -1,0 +1,265 @@
+// ==============================================================================
+// SaaS Educacional UNIBE - Módulo de Treinamento Social
+// Database Schema Specification (Prisma ORM)
+// ==============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ------------------------------------------------------------------------------
+// ENUMS DE DOMÍNIO
+// ------------------------------------------------------------------------------
+
+/// Status acadêmico do aluno no sistema
+enum StudentStatus {
+  ATIVO       /// Aluno em participação ativa
+  CONCLUIDO   /// Aluno concluiu o treinamento com êxito
+  DESISTENTE  /// Aluno formalizou desistência ou abandonou
+}
+
+/// Grau de parentesco do responsável legal
+enum GuardianRelationship {
+  MAE               /// Mãe
+  PAI               /// Pai
+  RESPONSAVEL_LEGAL /// Responsável Legal / Guardião
+  AVO               /// Avô / Avó
+  TIO               /// Tio / Tia
+  IRMAO             /// Irmão / Irmã
+  OUTRO             /// Outro vínculo familiar/tutelado
+}
+
+/// Ciclo de treinamento social (4 sábados consecutivos)
+enum TrainingCycleStatus {
+  EM_ANDAMENTO /// Ciclo em execução
+  CONCLUIDO    /// Ciclo finalizado (aulas ministradas)
+  CANCELADO    /// Ciclo cancelado administrativamente
+}
+
+/// Status de registro de frequência em cada sessão de aula
+enum AttendanceStatus {
+  PENDENTE /// Frequência ainda não apurada para o sábado
+  PRESENTE /// Aluno compareceu e participou da aula
+  FALTA    /// Aluno não compareceu à aula
+}
+
+/// Status do contato ativo via WhatsApp com responsável ou aluno
+enum WhatsAppContactStatus {
+  NAO_CONTATADO    /// Contato ainda não iniciado
+  MENSAGEM_ENVIADA /// Mensagem enviada pelo operador, aguardando resposta
+  CONFIRMADO       /// Responsável/aluno confirmou presença ou retorno positivo
+  SEM_RESPOSTA     /// Mensagem entregue sem resposta após janela operacional
+}
+
+/// Status de elegibilidade para emissão de certificado
+enum CertificateEligibility {
+  NAO_ELEGIVEL       /// Presenças < 4 ou Faltas > 0
+  PENDENTE_PAGAMENTO /// Presenças == 4 (100% frequência), mas taxa de emissão pendente
+  PAGO_LIBERADO      /// Presenças == 4 e taxa paga; certificado emitido e autenticado
+}
+
+/// Métodos aceitos para liquidação da taxa do certificado
+enum PaymentMethod {
+  PIX             /// Pagamento instantâneo via Pix
+  CARTAO_CREDITO  /// Cartão de crédito
+  CARTAO_DEBITO   /// Cartão de débito
+  BOLETO          /// Boleto bancário
+  DINHEIRO        /// Pagamento em espécie no polo
+  ISENTO          /// Isenção concedida administrativamente (bolsa/ação social)
+}
+
+// ------------------------------------------------------------------------------
+// MODELOS DE DADOS (MULTI-TENANT & DOMÍNIO EDUCACIONAL)
+// ------------------------------------------------------------------------------
+
+/// Unidade, Polo ou Instituição mantenedora da plataforma multi-tenant
+model Tenant {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @db.VarChar(150)
+  slug        String   @unique @db.VarChar(60)
+  document    String?  @map("document_cnpj") @db.VarChar(20)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  guardians          Guardian[]
+  students           Student[]
+  trainingCycles     TrainingCycle[]
+  contactLogs        WhatsAppContactLog[]
+  certificateRecords CertificateRecord[]
+
+  @@map("tenants")
+}
+
+/// Responsável legal pelo aluno (ponto focal de comunicação e WhatsApp)
+model Guardian {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  fullName       String               @map("full_name") @db.VarChar(150)
+  phoneRaw       String               @map("phone_raw") @db.VarChar(20)       // Dígitos puros com DDI e DDD (ex: 5511999998888)
+  phoneFormatted String               @map("phone_formatted") @db.VarChar(30) // Formatado para exibição visual (ex: +55 (11) 99999-8888)
+  email          String?              @map("email") @db.VarChar(255)
+  relationship   GuardianRelationship @default(RESPONSAVEL_LEGAL) @map("relationship")
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  students    Student[]
+  contactLogs WhatsAppContactLog[]
+
+  @@index([tenantId])
+  @@index([phoneRaw])
+  @@map("guardians")
+}
+
+/// Aluno matriculado no SaaS UNIBE
+model Student {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  guardianId     String?       @map("guardian_id") @db.Uuid
+  fullName       String        @map("full_name") @db.VarChar(150)
+  documentNumber String        @map("document_number") @db.VarChar(32) // Matrícula ou CPF
+  birthDate      DateTime?     @map("birth_date") @db.Date
+  status         StudentStatus @default(ATIVO) @map("status")
+  registeredAt   DateTime      @default(now()) @map("registered_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  guardian           Guardian?            @relation(fields: [guardianId], references: [id], onDelete: SetNull)
+  trainingCycles     TrainingCycle[]
+  contactLogs        WhatsAppContactLog[]
+  certificateRecords CertificateRecord[]
+
+  @@unique([tenantId, documentNumber], name: "uq_students_tenant_document")
+  @@index([tenantId, status])
+  @@index([guardianId])
+  @@index([fullName])
+  @@map("students")
+}
+
+/// Ciclo de Treinamento Social (composto exatamente por 4 sábados consecutivos)
+model TrainingCycle {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  studentId          String              @map("student_id") @db.Uuid
+  cycleCode          String?             @map("cycle_code") @db.VarChar(50) // Código legível (ex: "2026.1-TURMA-A")
+  enrollmentDate     DateTime            @default(now()) @map("enrollment_date") @db.Timestamptz(6)
+  startDate          DateTime            @map("start_date") @db.Date         // 1º sábado (Aula 1)
+  expectedEndDate    DateTime            @map("expected_end_date") @db.Date  // 4º sábado consecutivo (Aula 4)
+  status             TrainingCycleStatus @default(EM_ANDAMENTO) @map("status")
+  cancellationReason String?             @map("cancellation_reason") @db.Text
+  notes              String?             @map("notes") @db.Text
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  student           Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessions          ClassSession[]
+  certificateRecord CertificateRecord?
+  contactLogs       WhatsAppContactLog[]
+
+  @@index([tenantId, status])
+  @@index([studentId])
+  @@index([startDate, expectedEndDate])
+  @@map("training_cycles")
+}
+
+/// Sessão individual de aula do ciclo (Aulas 1 a 4) e registro de frequência
+model ClassSession {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainingCycleId  String           @map("training_cycle_id") @db.Uuid
+  sessionNumber    Int              @map("session_number") @db.SmallInt // 1, 2, 3 ou 4
+  scheduledDate    DateTime         @map("scheduled_date") @db.Date     // Data do sábado específico
+  attendanceStatus AttendanceStatus @default(PENDENTE) @map("attendance_status")
+  registeredBy     String?          @map("registered_by") @db.VarChar(120) // Nome ou ID do instrutor/operador
+  recordedAt       DateTime?        @map("recorded_at") @db.Timestamptz(6) // Timestamp do registro da chamada
+  absenceReason    String?          @map("absence_reason") @db.Text        // Justificativa opcional de falta
+  notes            String?          @map("notes") @db.Text                 // Anotações pedagógicas
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  trainingCycle TrainingCycle        @relation(fields: [trainingCycleId], references: [id], onDelete: Cascade)
+  contactLogs   WhatsAppContactLog[]
+
+  @@unique([trainingCycleId, sessionNumber], name: "uq_cycle_session_number")
+  @@index([trainingCycleId])
+  @@index([scheduledDate])
+  @@index([attendanceStatus])
+  @@map("class_sessions")
+}
+
+/// Histórico de disparos, mensagens personalizadas e confirmações de WhatsApp
+model WhatsAppContactLog {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String                @map("tenant_id") @db.Uuid
+  studentId        String                @map("student_id") @db.Uuid
+  guardianId       String?               @map("guardian_id") @db.Uuid
+  trainingCycleId  String?               @map("training_cycle_id") @db.Uuid
+  classSessionId   String?               @map("class_session_id") @db.Uuid
+  status           WhatsAppContactStatus @default(NAO_CONTATADO) @map("status")
+  messageText      String                @map("message_text") @db.Text          // Snapshot do texto editado pelo operador
+  phoneDestination String                @map("phone_destination") @db.VarChar(20) // Telefone de envio com DDI/DDD
+  operatorName     String                @map("operator_name") @db.VarChar(120) // Identificação do operador responsável
+  sentAt           DateTime?             @map("sent_at") @db.Timestamptz(6)     // Momento do envio da mensagem
+  confirmedAt      DateTime?             @map("confirmed_at") @db.Timestamptz(6) // Momento da confirmação de presença/retorno
+  responseSummary  String?               @map("response_summary") @db.Text      // Resumo da resposta do responsável
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  guardian      Guardian?      @relation(fields: [guardianId], references: [id], onDelete: SetNull)
+  trainingCycle TrainingCycle? @relation(fields: [trainingCycleId], references: [id], onDelete: SetNull)
+  classSession  ClassSession?  @relation(fields: [classSessionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([studentId])
+  @@index([guardianId])
+  @@index([classSessionId])
+  @@index([sentAt])
+  @@map("whatsapp_contact_logs")
+}
+
+/// Registro financeiro, controle de assiduidade e emissão de certificado
+model CertificateRecord {
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String                  @map("tenant_id") @db.Uuid
+  studentId            String                  @map("student_id") @db.Uuid
+  trainingCycleId      String                  @unique @map("training_cycle_id") @db.Uuid
+  attendanceCount      Int                     @default(0) @map("attendance_count") @db.SmallInt // 0 a 4
+  absenceCount         Int                     @default(0) @map("absence_count") @db.SmallInt    // 0 a 4
+  eligibility          CertificateEligibility  @default(NAO_ELEGIVEL) @map("eligibility")
+  feeAmount            Decimal                 @default(0.00) @map("fee_amount") @db.Decimal(10, 2)
+  isPaid               Boolean                 @default(false) @map("is_paid")
+  paidAt               DateTime?               @map("paid_at") @db.Timestamptz(6)
+  paymentMethod        PaymentMethod?          @map("payment_method")
+  paymentReference     String?                 @map("payment_reference") @db.VarChar(100) // ID da transação no gateway
+  certificateCode      String?                 @unique @map("certificate_code") @db.VarChar(64) // Código hash / UUID de autenticidade
+  issuedAt             DateTime?               @map("issued_at") @db.Timestamptz(6)
+  pdfUrl               String?                 @map("pdf_url") @db.VarChar(500)
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  trainingCycle TrainingCycle @relation(fields: [trainingCycleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, eligibility])
+  @@index([studentId])
+  @@index([isPaid])
+  @@index([certificateCode])
+  @@map("certificate_records")
+}
