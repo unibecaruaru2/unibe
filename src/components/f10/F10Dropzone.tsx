@@ -1,5 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { 
+  UploadCloud, 
+  FileText, 
+  CheckCircle2, 
+  AlertCircle, 
+  Sparkles, 
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  FileSpreadsheet
+} from 'lucide-react';
 import { parseF10ReportPdf } from '../../services/f10Parser';
 import { SAMPLE_F10_MATRICULAS } from '../../data/mockF10Data';
 import { F10ParseResult } from '../../types/f10';
@@ -8,31 +18,37 @@ interface F10DropzoneProps {
   onParsed: (result: F10ParseResult) => void;
   isProcessing: boolean;
   setIsProcessing: (val: boolean) => void;
+  activeFileName?: string;
+  totalMatriculas?: number;
 }
 
 export const F10Dropzone: React.FC<F10DropzoneProps> = ({
   onParsed,
   isProcessing,
-  setIsProcessing
+  setIsProcessing,
+  activeFileName = 'MATRÍCULAS DOS ÚLTIMOS 6 MESES (ABRIL – OUTUBRO).pdf',
+  totalMatriculas = 110
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [lastUploadedName, setLastUploadedName] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentFileName, setCurrentFileName] = useState(activeFileName);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleProcessFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setErrorMessage('Por favor, envie um arquivo no formato PDF gerado pelo F10.');
+      setErrorMessage('Por favor, envie um arquivo no formato PDF gerado pelo ERP F10.');
       return;
     }
 
     setErrorMessage(null);
     setIsProcessing(true);
-    setLastUploadedName(file.name);
+    setCurrentFileName(file.name);
 
     try {
       const result = await parseF10ReportPdf(file);
       onParsed(result);
+      setIsExpanded(false);
     } catch (err: any) {
       console.error(err);
       setErrorMessage(err?.message || 'Falha ao processar o PDF do F10.');
@@ -72,13 +88,14 @@ export const F10Dropzone: React.FC<F10DropzoneProps> = ({
         periodoReferencia: 'Matrículas de 01/10/2026 a 21/10/2026',
         totalRegistros: SAMPLE_F10_MATRICULAS.length
       });
-      setLastUploadedName('Relatorio_Matriculas_Outubro_F10.pdf');
+      setCurrentFileName('MATRÍCULAS DOS ÚLTIMOS 6 MESES (ABRIL – OUTUBRO).pdf');
       setIsProcessing(false);
-    }, 400);
+      setIsExpanded(false);
+    }, 300);
   };
 
   return (
-    <div className="bg-white dark:bg-[#0E1726] rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs">
+    <div className="bg-white dark:bg-[#0E1726] rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden transition-all">
       <input
         ref={fileInputRef}
         type="file"
@@ -87,77 +104,101 @@ export const F10Dropzone: React.FC<F10DropzoneProps> = ({
         onChange={handleFileChange}
       />
 
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => !isProcessing && fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
-          isDragOver
-            ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 scale-[1.005]'
-            : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-700 bg-slate-50/60 dark:bg-slate-900/40'
-        }`}
-      >
-        <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3 shadow-xs">
-          {isProcessing ? (
-            <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
-          ) : (
-            <UploadCloud className="w-6 h-6" />
+      {/* Barra Compacta Inteligente (Sempre visível sem empurrar a tela) */}
+      <div className="p-3.5 px-4 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-900/40">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-900/60">
+            <FileSpreadsheet className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                Relatório F10 Carregado:
+              </span>
+              <span className="text-xs font-mono font-medium text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200/60 dark:border-blue-900/60">
+                {currentFileName}
+              </span>
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {totalMatriculas} alunos
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Processamento em 3 páginas com costura horizontal (Contratos, Telefones, Bairros e Financeiro)
+            </p>
+          </div>
+        </div>
+
+        {/* Controles de Ação do Relatório */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleLoadSample}
+            disabled={isProcessing}
+            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Recarregar Amostra F10</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>{isExpanded ? 'Ocultar Área de Upload' : 'Substituir PDF F10'}</span>
+            {isExpanded ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Painel Expansível de Drag & Drop */}
+      {isExpanded && (
+        <div className="p-5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/30 dark:bg-slate-900/20 animate-in fade-in duration-150">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => !isProcessing && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
+              isDragOver
+                ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 scale-[1.005]'
+                : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-700 bg-white dark:bg-slate-900/60'
+            }`}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+              {isProcessing ? (
+                <RefreshCw className="w-6 h-6 animate-spin" />
+              ) : (
+                <UploadCloud className="w-6 h-6" />
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                {isProcessing ? 'Extraindo dados com costura horizontal...' : 'Arraste e solte o novo relatório em PDF do F10 aqui'}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+                Suporte automático a relatórios em 3 páginas (Pág 1 Contratos/Turmas, Pág 2 Telefones/Bairros, Pág 3 Financeiro F10).
+              </p>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 underline">
+                ou selecione do computador
+              </span>
+            </div>
+          </div>
+
+          {errorMessage && (
+            <div className="mt-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
           )}
         </div>
-
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-          {isProcessing
-            ? 'Extraindo e costurando colunas do relatório F10...'
-            : 'Arraste o relatório em PDF do ERP F10'}
-        </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md">
-          Suporte completo a relatórios amplos em 3 páginas (Contratos, Telefones e Bairros com costura horizontal automática).
-        </p>
-
-        {isProcessing && (
-          <div className="w-full max-w-xs mt-4">
-            <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-600 rounded-full animate-pulse w-3/4"></div>
-            </div>
-            <span className="text-[11px] text-blue-600 dark:text-blue-400 mt-1.5 block font-medium">
-              Processando client-side via PDF.js...
-            </span>
-          </div>
-        )}
-
-        {!isProcessing && lastUploadedName && (
-          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Arquivo carregado: {lastUploadedName}</span>
-          </div>
-        )}
-      </div>
-
-      {errorMessage && (
-        <div className="mt-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
       )}
-
-      {/* Botão de Demonstração / Amostra Real */}
-      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <span>Quer testar com os dados reais do relatório F10 anexado?</span>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleLoadSample}
-          disabled={isProcessing}
-          className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200/80 dark:border-slate-700"
-        >
-          <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Carregar Amostra Real F10 (12 Matrículas)</span>
-        </button>
-      </div>
     </div>
   );
 };

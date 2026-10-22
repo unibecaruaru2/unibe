@@ -7,23 +7,36 @@ import {
   ShieldAlert, 
   UserX, 
   Phone, 
-  Smartphone,
-  Calendar,
-  Sparkles,
-  GraduationCap,
-  CalendarCheck2,
-  UserMinus
+  Smartphone, 
+  Calendar, 
+  GraduationCap, 
+  CalendarCheck2, 
+  UserMinus,
+  ChevronRight,
+  Eye,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import { MatriculaAcademicaF10 } from '../../types/f10';
 
 interface F10AcademicTableProps {
   matriculas: MatriculaAcademicaF10[];
+  selectedStudentIds: string[];
+  onToggleSelectStudent: (id: string) => void;
+  onToggleSelectAll: () => void;
+  density: 'confortavel' | 'compacto';
+  onOpenStudentDrawer: (matricula: MatriculaAcademicaF10) => void;
   onOpenWhatsApp: (matricula: MatriculaAcademicaF10, mode?: 'COBRANCA' | 'RESGATE_PEDAGOGICO' | 'RETENCAO' | 'BOAS_VINDAS') => void;
   onOpenRetentionModal: (matricula: MatriculaAcademicaF10) => void;
 }
 
 export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
   matriculas,
+  selectedStudentIds,
+  onToggleSelectStudent,
+  onToggleSelectAll,
+  density,
+  onOpenStudentDrawer,
   onOpenWhatsApp,
   onOpenRetentionModal
 }) => {
@@ -37,28 +50,52 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
           Nenhuma matrícula encontrada no filtro selecionado
         </h4>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-          Tente alterar o filtro de risco, a turma unificada ou o termo de busca acima.
+          Tente alterar o filtro de risco, a turma unificada ou o termo de busca na barra acima.
         </p>
       </div>
     );
   }
+
+  const isAllSelected = matriculas.length > 0 && selectedStudentIds.length === matriculas.length;
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .filter(n => n.length > 2)
+      .slice(0, 2)
+      .map(n => n[0])
+      .join('')
+      .toUpperCase() || 'AL';
+  };
+
+  const isCompact = density === 'compacto';
 
   return (
     <div className="bg-white dark:bg-[#0E1726] rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              <th className="py-3.5 px-4">Aluno & Turma</th>
-              <th className="py-3.5 px-4">Classificação de Risco</th>
-              <th className="py-3.5 px-4">Frequência & Faltas</th>
-              <th className="py-3.5 px-4">Situação Financeira</th>
-              <th className="py-3.5 px-4">App Smart</th>
-              <th className="py-3.5 px-4 text-right">Ações Operacionais</th>
+            <tr className="bg-slate-50/90 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider select-none">
+              <th className="py-3 px-3 w-10 text-center">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={onToggleSelectAll}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                  title="Selecionar todos os alunos exibidos"
+                />
+              </th>
+              <th className="py-3 px-4">Aluno & Turma</th>
+              <th className="py-3 px-4">Classificação de Risco</th>
+              <th className="py-3 px-4">Frequência & Faltas</th>
+              <th className="py-3 px-4">Situação Financeira</th>
+              <th className="py-3 px-4">App Smart</th>
+              <th className="py-3 px-4 text-right">Ações Rápidas</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
             {matriculas.map((mat) => {
+              const isSelected = selectedStudentIds.includes(mat.id);
               const isQ1Attending = mat.quadranteRisco === 'Q1_OVERDUE_ATTENDING';
               const isQ1Absent = mat.quadranteRisco === 'Q1_OVERDUE_ABSENT';
               const isQ2 = mat.quadranteRisco === 'Q2_ABSENT_CHURN';
@@ -68,90 +105,118 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
               return (
                 <tr 
                   key={mat.id}
-                  className={`transition-colors group ${
-                    isQ3 && mat.isAguardandoQuitado
-                      ? 'bg-rose-50/30 dark:bg-rose-950/20 hover:bg-rose-50/50'
+                  onClick={() => onOpenStudentDrawer(mat)}
+                  className={`transition-colors cursor-pointer group select-none ${
+                    isSelected
+                      ? 'bg-blue-50/50 dark:bg-blue-950/30'
+                      : isQ3 && mat.isAguardandoQuitado
+                      ? 'bg-purple-50/25 dark:bg-purple-950/15 hover:bg-purple-50/40'
                       : isQ1Attending
-                      ? 'hover:bg-rose-50/20 dark:hover:bg-rose-950/20'
+                      ? 'hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20'
                       : isQ1Absent
-                      ? 'bg-rose-50/15 dark:bg-rose-950/10 hover:bg-rose-50/30'
-                      : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                      ? 'bg-rose-50/10 dark:bg-rose-950/10 hover:bg-rose-50/25'
+                      : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                   }`}
                 >
+                  {/* Checkbox de Seleção */}
+                  <td 
+                    className="py-3 px-3 text-center align-middle"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelectStudent(mat.id)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                    />
+                  </td>
+
                   {/* Aluno & Turma Canônica */}
-                  <td className="py-3.5 px-4 align-top">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 text-sm group-hover:text-blue-600 transition-colors">
-                          {mat.alunoNome}
-                        </span>
-                        {mat.statusContrato === 'Aguardando' && (
-                          <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold px-1.5 py-0.2 rounded border border-purple-200">
-                            Aguardando
+                  <td className={`${isCompact ? 'py-2 px-4' : 'py-3.5 px-4'} align-top`}>
+                    <div className="flex items-start gap-3">
+                      {/* Avatar Inicial */}
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 group-hover:border-blue-400 transition-colors">
+                        {getInitials(mat.alunoNome)}
+                      </div>
+
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {mat.alunoNome}
                           </span>
+                          {mat.statusContrato === 'Aguardando' && (
+                            <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold px-1.5 py-0.2 rounded border border-purple-200">
+                              Aguardando
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.2 rounded">
+                            #{mat.contrato}
+                          </span>
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-emerald-600" />
+                            {mat.telefonePrincipal}
+                          </span>
+                          {mat.bairro && (
+                            <span className="text-[10px] text-slate-400 hidden sm:inline">
+                              • {mat.bairro}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Turmas Canônicas Unificadas */}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {mat.turmasCanonicas.map((tc, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                              {tc}
+                            </span>
+                          ))}
+                        </div>
+
+                        {mat.tratativaTipo && (
+                          <div className="mt-1 text-[10px] text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-950/40 px-1.5 py-0.2 rounded w-fit">
+                            Tratativa: {mat.tratativaTipo.replace(/_/g, ' ')}
+                          </div>
                         )}
                       </div>
-
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded">
-                          #{mat.contrato}
-                        </span>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                          <Phone className="w-3 h-3 text-emerald-600" />
-                          <span>{mat.telefonePrincipal}</span>
-                        </div>
-                      </div>
-
-                      {/* Turmas Canônicas Unificadas */}
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {mat.turmasCanonicas.map((tc, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                            {tc}
-                          </span>
-                        ))}
-                      </div>
-
-                      {mat.tratativaTipo && (
-                        <div className="mt-1 text-[10px] text-purple-600 dark:text-purple-400 font-medium bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded w-fit">
-                          Tratativa: {mat.tratativaTipo.replace('_', ' ')}
-                        </div>
-                      )}
                     </div>
                   </td>
 
-                  {/* Classificação de Risco (Matriz de Quadrantes) */}
-                  <td className="py-3.5 px-4 align-top">
+                  {/* Classificação de Risco */}
+                  <td className={`${isCompact ? 'py-2 px-4' : 'py-3.5 px-4'} align-top`}>
                     <div className="flex flex-col gap-1">
                       {isQ1Attending && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold text-[11px] border border-rose-200/80 w-fit">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] border border-emerald-200/80 w-fit">
                           <CalendarCheck2 className="w-3.5 h-3.5 text-emerald-600" />
                           <span>Inadimplente em Aula</span>
                         </span>
                       )}
 
                       {isQ1Absent && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 font-bold text-[11px] border border-rose-300 w-fit">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 font-bold text-[11px] border border-rose-300 w-fit">
                           <UserMinus className="w-3.5 h-3.5 text-rose-600" />
                           <span>Inadimplente Ausente</span>
                         </span>
                       )}
 
                       {isQ2 && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-[11px] border border-amber-200/80 w-fit">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-[11px] border border-amber-200/80 w-fit">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Q2: Risco Evasão</span>
+                          <span>Risco Evasão (Faltas)</span>
                         </span>
                       )}
 
                       {isQ3 && (
                         <div className="flex flex-col gap-0.5">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold text-[11px] border border-purple-200/80 w-fit">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold text-[11px] border border-purple-200/80 w-fit">
                             <UserX className="w-3.5 h-3.5 text-purple-600" />
-                            <span>Q3: Fila de Retenção</span>
+                            <span>Fila de Retenção</span>
                           </span>
                           {mat.isAguardandoQuitado && (
                             <span className="text-[10px] font-bold text-rose-600 flex items-center gap-1 pl-1">
@@ -162,22 +227,22 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                       )}
 
                       {isQ4 && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px] border border-emerald-200/80 w-fit">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px] border border-emerald-200/80 w-fit">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Q4: Regular / Saudável</span>
+                          <span>Regular / Saudável</span>
                         </span>
                       )}
                     </div>
                   </td>
 
                   {/* Frequência & Faltas */}
-                  <td className="py-3.5 px-4 align-top">
+                  <td className={`${isCompact ? 'py-2 px-4' : 'py-3.5 px-4'} align-top`}>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                           Faltas:
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+                        <span className={`px-2 py-0.2 rounded-full text-xs font-black ${
                           mat.faltasTotais >= 3
                             ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -193,15 +258,12 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
 
                       <div className="text-[10px] text-slate-500 space-y-0.5">
                         {mat.ultimaPresenca ? (
-                          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold">
-                            <Calendar className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
+                            <Calendar className="w-3 h-3" />
                             <span>Última presença: {mat.ultimaPresenca}</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50 dark:bg-amber-950/70 border border-amber-200/90 dark:border-amber-800 text-amber-800 dark:text-amber-200 font-bold text-[10px]">
-                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                            <span>Nunca compareceu à aula presencial</span>
-                          </div>
+                          <span className="text-slate-400 italic">Nunca compareceu</span>
                         )}
 
                         {mat.ultimaFalta && (
@@ -214,7 +276,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                   </td>
 
                   {/* Situação Financeira */}
-                  <td className="py-3.5 px-4 align-top">
+                  <td className={`${isCompact ? 'py-2 px-4' : 'py-3.5 px-4'} align-top`}>
                     <div className="flex flex-col gap-0.5">
                       {mat.valorVencidoNum > 0 ? (
                         <div>
@@ -238,7 +300,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                   </td>
 
                   {/* App Smart */}
-                  <td className="py-3.5 px-4 align-top">
+                  <td className={`${isCompact ? 'py-2 px-4' : 'py-3.5 px-4'} align-top`}>
                     <div className="flex flex-col gap-0.5 text-[11px]">
                       <div className="flex items-center gap-1">
                         <Smartphone className="w-3 h-3 text-slate-400" />
@@ -252,16 +314,19 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                     </div>
                   </td>
 
-                  {/* Ações Operacionais */}
-                  <td className="py-3.5 px-4 align-top text-right">
+                  {/* Ações Rápidas */}
+                  <td 
+                    className={`${isCompact ? 'py-2 px-4' : 'py-3.5 px-4'} align-top text-right`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="flex flex-col items-end gap-1.5">
-                      {/* Cobrança para qualquer Inadimplente (Frequentando ou Ausente) */}
+                      {/* Cobrança para qualquer Inadimplente */}
                       {(isQ1Attending || isQ1Absent) && (
                         <button
                           type="button"
                           onClick={() => onOpenWhatsApp(mat, 'COBRANCA')}
                           className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer w-fit"
-                          title="Cobrança amigável com link da fatura F10"
+                          title="Enviar cobrança via WhatsApp com link da fatura F10"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>Cobrar F10</span>
@@ -274,7 +339,7 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                           type="button"
                           onClick={() => onOpenWhatsApp(mat, 'RESGATE_PEDAGOGICO')}
                           className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer w-fit"
-                          title="Resgate pedagógico para reposição de aulas"
+                          title="Enviar mensagem pedagógica para reposição de aulas"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>Reposição</span>
@@ -299,26 +364,38 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
                         <button
                           type="button"
                           onClick={() => onOpenWhatsApp(mat, 'BOAS_VINDAS')}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer w-fit"
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>WhatsApp</span>
                         </button>
                       )}
 
-                      {/* Link F10 Oficial */}
-                      {mat.linkPagamentoF10 && (
-                        <a
-                          href={mat.linkPagamentoF10}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                          title="Abrir fatura oficial do F10"
+                      {/* Link F10 Oficial ou Abrir Dossiê */}
+                      <div className="flex items-center gap-2">
+                        {mat.linkPagamentoF10 && (
+                          <a
+                            href={mat.linkPagamentoF10}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                            title="Abrir fatura oficial do ERP F10"
+                          >
+                            <span>Fatura F10</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => onOpenStudentDrawer(mat)}
+                          className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-medium flex items-center gap-0.5 cursor-pointer"
+                          title="Ver ficha completa do aluno"
                         >
-                          <span>Ver F10</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
+                          <span>Ficha</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>

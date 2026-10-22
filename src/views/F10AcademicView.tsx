@@ -8,14 +8,21 @@ import {
   CloudCheck, 
   RefreshCw,
   Sparkles,
-  Smartphone
+  Smartphone,
+  Layers,
+  BarChart3,
+  CalendarCheck2,
+  Users
 } from 'lucide-react';
 import { MatriculaAcademicaF10, RegimeFinanceiro, QuadranteRisco, F10ParseResult } from '../types/f10';
 import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
 import { F10Dropzone } from '../components/f10/F10Dropzone';
-import { F10Kpis } from '../components/f10/F10Kpis';
-import { F10FilterBar, FilterQuadrantOption } from '../components/f10/F10FilterBar';
+import { F10ExecutiveIndices } from '../components/f10/F10ExecutiveIndices';
+import { F10FilterBar, FilterQuadrantOption, SortOption, ViewTab } from '../components/f10/F10FilterBar';
 import { F10AcademicTable } from '../components/f10/F10AcademicTable';
+import { F10AnalyticsView } from '../components/f10/F10AnalyticsView';
+import { F10StudentDrawer } from '../components/f10/F10StudentDrawer';
+import { F10BatchActionsBar } from '../components/f10/F10BatchActionsBar';
 import { F10WhatsAppModal } from '../components/f10/F10WhatsAppModal';
 import { F10RetentionModal } from '../components/f10/F10RetentionModal';
 import { 
@@ -53,15 +60,23 @@ export const F10AcademicView: React.FC = () => {
   const [isSyncingDb, setIsSyncingDb] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
+  // Modais & Drawer
   const [activeWhatsAppMatricula, setActiveWhatsAppMatricula] = useState<MatriculaAcademicaF10 | null>(null);
   const [activeWhatsAppMode, setActiveWhatsAppMode] = useState<'COBRANCA' | 'RESGATE_PEDAGOGICO' | 'RETENCAO' | 'BOAS_VINDAS'>('COBRANCA');
   const [retentionTargetMatricula, setRetentionTargetMatricula] = useState<MatriculaAcademicaF10 | null>(null);
+  const [selectedStudentForDrawer, setSelectedStudentForDrawer] = useState<MatriculaAcademicaF10 | null>(null);
 
-  // Estados dos Filtros
+  // Estados dos Filtros e Visualização
+  const [activeTab, setActiveTab] = useState<ViewTab>('TABELA');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTurma, setSelectedTurma] = useState('TODOS');
   const [selectedQuadrant, setSelectedQuadrant] = useState<FilterQuadrantOption>('TODOS');
   const [selectedRegime, setSelectedRegime] = useState<'TODOS' | RegimeFinanceiro>('TODOS');
+  const [sortBy, setSortBy] = useState<SortOption>('DEBITO_DESC');
+  const [density, setDensity] = useState<'confortavel' | 'compacto'>('confortavel');
+
+  // Seleção em Lote (Batch Actions)
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   // Sincronização Inicial com o Supabase ao Montar a Tela
   useEffect(() => {
@@ -76,7 +91,6 @@ export const F10AcademicView: React.FC = () => {
             setPeriodoReferencia(cloudData.periodoReferencia);
             setLastSyncTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
           } else {
-            // Se o banco estiver vazio pela primeira vez, semeia a base inicial
             await syncF10MatriculasToSupabase(SAMPLE_F10_MATRICULAS, 'Consolidado F10 (01/07/26 a 21/10/26)');
             setLastSyncTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
           }
@@ -119,13 +133,13 @@ export const F10AcademicView: React.FC = () => {
     }
   };
 
-  // Handler de Novo PDF Parseado (Salva no estado local e sobe para o Supabase em nuvem)
+  // Handler de Novo PDF Parseado
   const handleParsed = async (result: F10ParseResult) => {
     setMatriculas(result.matriculas);
     const ref = result.periodoReferencia || periodoReferencia;
     setPeriodoReferencia(ref);
+    setSelectedStudentIds([]);
 
-    // Sincroniza imediatamente com o banco na nuvem
     setIsSyncingDb(true);
     try {
       await syncF10MatriculasToSupabase(result.matriculas, ref);
@@ -137,9 +151,8 @@ export const F10AcademicView: React.FC = () => {
     }
   };
 
-  // Handler de Retenção Salva (Persiste no Supabase)
+  // Handler de Retenção Salva
   const handleSaveRetention = async (contrato: string, actionType: string, notes: string) => {
-    // Atualiza estado local
     setMatriculas(prev => prev.map(m => {
       if (m.contrato === contrato) {
         return {
@@ -151,7 +164,14 @@ export const F10AcademicView: React.FC = () => {
       return m;
     }));
 
-    // Salva no Supabase
+    if (selectedStudentForDrawer && selectedStudentForDrawer.contrato === contrato) {
+      setSelectedStudentForDrawer(prev => prev ? ({
+        ...prev,
+        tratativaTipo: actionType,
+        tratativaNotas: notes
+      }) : null);
+    }
+
     try {
       await updateF10RetentionInSupabase(contrato, actionType, notes);
     } catch (e) {
@@ -163,6 +183,7 @@ export const F10AcademicView: React.FC = () => {
     if (window.confirm('Deseja limpar as matrículas importadas do F10 em todos os dispositivos?')) {
       setMatriculas([]);
       setPeriodoReferencia('Nenhum relatório ativo');
+      setSelectedStudentIds([]);
       try {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(STORAGE_PERIOD_KEY);
@@ -171,7 +192,7 @@ export const F10AcademicView: React.FC = () => {
     }
   };
 
-  // Coleta turmas canônicas únicas (PM.7 / PM.707 e Mirim 7 / 707 unificadas)
+  // Coleta turmas canônicas únicas
   const availableTurmas = useMemo(() => {
     const setT = new Set<string>();
     matriculas.forEach(m => {
@@ -180,17 +201,47 @@ export const F10AcademicView: React.FC = () => {
     return Array.from(setT).sort();
   }, [matriculas]);
 
-  // Filtra as matrículas em tempo real com suporte a Inadimplência Geral
+  // Contadores por quadrante em tempo real
+  const countsByQuadrant = useMemo(() => {
+    let inadimplentesGeral = 0;
+    let q1Attending = 0;
+    let q1Absent = 0;
+    let q2Churn = 0;
+    let q3Cancel = 0;
+    let q4Regular = 0;
+    let semApp = 0;
+
+    matriculas.forEach(m => {
+      if (m.valorVencidoNum > 0) inadimplentesGeral++;
+      if (m.quadranteRisco === 'Q1_OVERDUE_ATTENDING') q1Attending++;
+      if (m.quadranteRisco === 'Q1_OVERDUE_ABSENT') q1Absent++;
+      if (m.quadranteRisco === 'Q2_ABSENT_CHURN') q2Churn++;
+      if (m.quadranteRisco === 'Q3_WAITING_CANCEL') q3Cancel++;
+      if (m.quadranteRisco === 'Q4_REGULAR') q4Regular++;
+      if (!m.hasAppActive) semApp++;
+    });
+
+    return {
+      todos: matriculas.length,
+      inadimplentesGeral,
+      q1Attending,
+      q1Absent,
+      q2Churn,
+      q3Cancel,
+      q4Regular,
+      semApp
+    };
+  }, [matriculas]);
+
+  // Filtra e Ordena as matrículas em tempo real
   const filteredMatriculas = useMemo(() => {
-    return matriculas.filter(m => {
+    const filtered = matriculas.filter(m => {
       // Filtros de Quadrante e Inadimplência
       if (selectedQuadrant !== 'TODOS') {
         if (selectedQuadrant === 'INADIMPLENTES_TODOS') {
           if (m.valorVencidoNum <= 0) return false;
         } else if (selectedQuadrant === 'SEM_APP') {
           if (m.hasAppActive) return false;
-        } else if (selectedQuadrant === 'NUNCA_COMPARECEU') {
-          if (!m.nuncaCompareceu && m.ultimaPresenca) return false;
         } else if (m.quadranteRisco !== selectedQuadrant) {
           return false;
         }
@@ -223,11 +274,47 @@ export const F10AcademicView: React.FC = () => {
 
       return true;
     });
-  }, [matriculas, searchQuery, selectedTurma, selectedQuadrant, selectedRegime]);
 
-  // Exportar para CSV
-  const handleExportCsv = () => {
-    if (filteredMatriculas.length === 0) return;
+    // Ordenação
+    return filtered.sort((a, b) => {
+      if (sortBy === 'DEBITO_DESC') {
+        return (b.valorVencidoNum || 0) - (a.valorVencidoNum || 0);
+      }
+      if (sortBy === 'FALTAS_DESC') {
+        return (b.faltasTotais || 0) - (a.faltasTotais || 0);
+      }
+      if (sortBy === 'NOME_ASC') {
+        return a.alunoNome.localeCompare(b.alunoNome);
+      }
+      if (sortBy === 'RECENTE_DESC') {
+        return (b.contrato || '').localeCompare(a.contrato || '');
+      }
+      return 0;
+    });
+  }, [matriculas, searchQuery, selectedTurma, selectedQuadrant, selectedRegime, sortBy]);
+
+  // Seleção em lote
+  const handleToggleSelectStudent = (id: string) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedStudentIds.length === filteredMatriculas.length) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredMatriculas.map(m => m.id));
+    }
+  };
+
+  // Exportar para CSV (selecionados ou filtrados)
+  const handleExportCsv = (onlySelected = false) => {
+    const listToExport = onlySelected 
+      ? filteredMatriculas.filter(m => selectedStudentIds.includes(m.id))
+      : filteredMatriculas;
+
+    if (listToExport.length === 0) return;
 
     const headers = [
       'Contrato',
@@ -237,15 +324,18 @@ export const F10AcademicView: React.FC = () => {
       'Faltas',
       'Ultima Presenca',
       'Valor Vencido',
+      'Parcelas Vencidas',
+      'Valor Total',
       'Telefone',
       'Bairro',
       'Turmas Canonicas',
       'Smart Aluno',
       'Tratativa Tipo',
+      'Tratativa Notas',
       'Link Pagamento F10'
     ];
 
-    const rows = filteredMatriculas.map(m => [
+    const rows = listToExport.map(m => [
       `"${m.contrato}"`,
       `"${m.alunoNome}"`,
       `"${m.statusContrato}"`,
@@ -253,11 +343,14 @@ export const F10AcademicView: React.FC = () => {
       m.faltasTotais,
       `"${m.ultimaPresenca || ''}"`,
       `"${m.valorVencido || 'R$ 0,00'}"`,
+      m.parcelasVencidas,
+      `"${m.valorTotal || 'R$ 0,00'}"`,
       `"${m.telefonePrincipal}"`,
       `"${m.bairro || ''}"`,
       `"${m.turmasCanonicas.join('; ')}"`,
       `"${m.smartAluno}"`,
       `"${m.tratativaTipo || ''}"`,
+      `"${(m.tratativaNotas || '').replace(/"/g, '""')}"`,
       `"${m.linkPagamentoF10 || ''}"`
     ]);
 
@@ -266,49 +359,57 @@ export const F10AcademicView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `F10_Prevencao_Evasao_Inadimplencia_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `F10_Gestao_Alunos_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // Batch WhatsApp (abre o primeiro da lista selecionada)
+  const handleBatchWhatsApp = () => {
+    const selected = filteredMatriculas.filter(m => selectedStudentIds.includes(m.id));
+    if (selected.length > 0) {
+      setActiveWhatsAppMatricula(selected[0]);
+      setActiveWhatsAppMode(selected[0].valorVencidoNum > 0 ? 'COBRANCA' : 'RESGATE_PEDAGOGICO');
+    }
+  };
+
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto animate-fadeIn pb-12">
-      {/* Top Header com Status de Sincronização em Nuvem */}
-      <div className="bg-white dark:bg-[#0E1726] rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-rose-600 flex items-center justify-center text-white shadow-md shadow-rose-600/30">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                  Prevenção de Evasão, Recuperação & Risco Acadêmico
-                </h1>
-                
-                {/* Badge de Sincronização em Nuvem (Multi-Dispositivos) */}
-                <div 
-                  onClick={handleForceSync}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 cursor-pointer hover:bg-emerald-100 transition-colors"
-                  title="Sincronizado via Supabase entre todos os computadores e celulares. Clique para atualizar agora."
-                >
-                  {isSyncingDb ? (
-                    <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
-                  ) : (
-                    <Cloud className="w-3 h-3 text-emerald-600" />
-                  )}
-                  <span>{isSyncingDb ? 'Sincronizando...' : `Nuvem Sincronizada ${lastSyncTime ? `(${lastSyncTime})` : ''}`}</span>
-                </div>
+    <div className="space-y-5 max-w-[1440px] mx-auto animate-fadeIn pb-16">
+      
+      {/* 1. Top Header com Sincronização em Nuvem Supabase e Ações Executivas */}
+      <div className="bg-white dark:bg-[#0E1726] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center text-white shadow-md shadow-rose-600/30 shrink-0">
+            <ShieldAlert className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                Gestão & Prevenção de Evasão Acadêmica F10
+              </h1>
+              
+              {/* Badge de Sincronização em Nuvem */}
+              <div 
+                onClick={handleForceSync}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                title="Sincronizado via Supabase em tempo real. Clique para sincronizar agora."
+              >
+                {isSyncingDb ? (
+                  <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
+                ) : (
+                  <Cloud className="w-3 h-3 text-emerald-600" />
+                )}
+                <span>{isSyncingDb ? 'Sincronizando...' : `Nuvem Ativa ${lastSyncTime ? `(${lastSyncTime})` : ''}`}</span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Monitoramento integrado de inadimplência geral, retenção de cancelamentos e assiduidade com banco Supabase
-              </p>
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Monitoramento inteligente de assiduidade, inadimplência e retenção com integração F10
+            </p>
           </div>
         </div>
 
-        {/* Ações do Topo */}
+        {/* Ações Globais */}
         <div className="flex items-center gap-2">
           {matriculas.length > 0 && (
             <>
@@ -317,7 +418,7 @@ export const F10AcademicView: React.FC = () => {
                 onClick={handleForceSync}
                 disabled={isSyncingDb}
                 className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer"
-                title="Sincronizar com outros dispositivos agora"
+                title="Sincronizar dados com o Supabase agora"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin text-blue-600' : ''}`} />
                 <span>Sincronizar</span>
@@ -325,8 +426,9 @@ export const F10AcademicView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={handleExportCsv}
+                onClick={() => handleExportCsv(false)}
                 className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                title="Exportar dados filtrados para planilha CSV"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar CSV</span>
@@ -335,8 +437,8 @@ export const F10AcademicView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                title="Limpar todos os dados na nuvem"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                title="Limpar todos os dados importados"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -345,22 +447,25 @@ export const F10AcademicView: React.FC = () => {
         </div>
       </div>
 
-      {/* Upload Drag & Drop */}
+      {/* 2. Barra Inteligente de Upload & Relatório F10 (Compacta e Expansível) */}
       <F10Dropzone
         onParsed={handleParsed}
         isProcessing={isProcessing}
         setIsProcessing={setIsProcessing}
+        totalMatriculas={matriculas.length}
       />
 
-      {/* Cards de KPIs com Inadimplência Geral & Desdobramento */}
-      <F10Kpis
+      {/* 3. Índices Executivos Estratégicos & Análise de Dados */}
+      <F10ExecutiveIndices
         matriculas={matriculas}
-        periodoReferencia={periodoReferencia}
-        activeQuadrantFilter={selectedQuadrant}
-        onSelectQuadrant={(q: any) => setSelectedQuadrant(q)}
+        activeFilter={selectedQuadrant}
+        onSelectFilter={(q) => {
+          setSelectedQuadrant(q);
+          setActiveTab('TABELA');
+        }}
       />
 
-      {/* Barra de Filtros com Seletor de Inadimplência Geral e Turmas Canônicas */}
+      {/* 4. Barra Central de Filtros, Modos de Visualização e Controles */}
       <F10FilterBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -370,9 +475,16 @@ export const F10AcademicView: React.FC = () => {
         setSelectedQuadrant={setSelectedQuadrant}
         selectedRegime={selectedRegime}
         setSelectedRegime={setSelectedRegime}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        density={density}
+        setDensity={setDensity}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         availableTurmas={availableTurmas}
         totalCount={matriculas.length}
         filteredCount={filteredMatriculas.length}
+        countsByQuadrant={countsByQuadrant}
         onClearFilters={() => {
           setSearchQuery('');
           setSelectedTurma('TODOS');
@@ -381,17 +493,57 @@ export const F10AcademicView: React.FC = () => {
         }}
       />
 
-      {/* Tabela Operacional de Risco & Ações Rápidas */}
-      <F10AcademicTable
-        matriculas={filteredMatriculas}
+      {/* 5. Conteúdo Dinâmico por Aba: Tabela Operacional de Gestão OU Painel Analítico */}
+      {activeTab === 'TABELA' ? (
+        <F10AcademicTable
+          matriculas={filteredMatriculas}
+          selectedStudentIds={selectedStudentIds}
+          onToggleSelectStudent={handleToggleSelectStudent}
+          onToggleSelectAll={handleToggleSelectAll}
+          density={density}
+          onOpenStudentDrawer={(mat) => setSelectedStudentForDrawer(mat)}
+          onOpenWhatsApp={(mat, mode) => {
+            setActiveWhatsAppMatricula(mat);
+            if (mode) setActiveWhatsAppMode(mode);
+          }}
+          onOpenRetentionModal={(mat) => setRetentionTargetMatricula(mat)}
+        />
+      ) : (
+        <F10AnalyticsView
+          matriculas={matriculas}
+          onSelectTurma={(turma) => {
+            setSelectedTurma(turma);
+            setActiveTab('TABELA');
+          }}
+          onSelectFilter={(filter) => {
+            setSelectedQuadrant(filter);
+            setActiveTab('TABELA');
+          }}
+          onGoToStudentsTable={() => setActiveTab('TABELA')}
+        />
+      )}
+
+      {/* 6. Barra Flutuante de Ações em Lote */}
+      <F10BatchActionsBar
+        selectedCount={selectedStudentIds.length}
+        onClearSelection={() => setSelectedStudentIds([])}
+        onBatchWhatsApp={handleBatchWhatsApp}
+        onBatchExportCsv={() => handleExportCsv(true)}
+      />
+
+      {/* 7. Dossiê Completo do Aluno (Slide-Over Drawer) */}
+      <F10StudentDrawer
+        isOpen={Boolean(selectedStudentForDrawer)}
+        onClose={() => setSelectedStudentForDrawer(null)}
+        matricula={selectedStudentForDrawer}
         onOpenWhatsApp={(mat, mode) => {
           setActiveWhatsAppMatricula(mat);
           if (mode) setActiveWhatsAppMode(mode);
         }}
-        onOpenRetentionModal={(mat) => setRetentionTargetMatricula(mat)}
+        onSaveRetention={handleSaveRetention}
       />
 
-      {/* Modais Operacionais */}
+      {/* 8. Modais Operacionais de Ação */}
       <F10WhatsAppModal
         isOpen={Boolean(activeWhatsAppMatricula)}
         onClose={() => setActiveWhatsAppMatricula(null)}

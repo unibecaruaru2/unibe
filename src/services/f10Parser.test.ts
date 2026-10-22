@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { classificarRegime, parseTurmas, sanitizePhoneToWhatsApp, resolveRowDates } from './f10Parser';
-import { canonicalizeTurma, classifyRiskQuadrant, parseCurrencyNumber, calculateF10Kpis } from '../utils/f10Analytics';
+import { canonicalizeTurma, classifyRiskQuadrant, parseCurrencyNumber, calculateF10Kpis, calculateExecutiveIndices } from '../utils/f10Analytics';
 import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
 
 describe('Módulo de Prevenção de Evasão, Inadimplência Geral & Sincronização F10', () => {
@@ -160,6 +160,18 @@ describe('Módulo de Prevenção de Evasão, Inadimplência Geral & Sincronizaç
     test('deve contabilizar totalNuncaCompareceram na base', () => {
       const kpis = calculateF10Kpis(SAMPLE_F10_MATRICULAS);
       assert.ok(kpis.totalNuncaCompareceram > 0, 'Deve ter alunos sinalizados que nunca compareceram à aula presencial');
+    });
+  });
+
+  describe('calculateExecutiveIndices() - Índices Estratégicos & Análise Multidimensional', () => {
+    test('deve calcular taxa de risco de evasão, assiduidade e adoção do app', () => {
+      const indices = calculateExecutiveIndices(SAMPLE_F10_MATRICULAS);
+      assert.ok(indices.taxaRiscoEvasao >= 0 && indices.taxaRiscoEvasao <= 100);
+      assert.ok(indices.taxaAssiduidade >= 0 && indices.taxaAssiduidade <= 100);
+      assert.ok(indices.taxaAdocaoApp >= 0 && indices.taxaAdocaoApp <= 100);
+      assert.ok(Array.isArray(indices.turmas));
+      assert.ok(indices.turmas.length > 0);
+      assert.ok(['CONTROLADO', 'ATENÇÃO', 'CRÍTICO'].includes(indices.classificacaoEvasao));
     });
   });
 });
