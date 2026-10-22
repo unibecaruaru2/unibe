@@ -5,7 +5,8 @@ import {
   MessageSquare, 
   Download, 
   ShieldAlert,
-  Sparkles
+  Sparkles,
+  Copy
 } from 'lucide-react';
 import { MatriculaAcademicaF10 } from '../../types/f10';
 
@@ -14,13 +15,15 @@ interface F10BatchActionsBarProps {
   onClearSelection: () => void;
   onBatchWhatsApp: () => void;
   onBatchExportCsv: () => void;
+  onBatchCopyReport?: () => void;
 }
 
 export const F10BatchActionsBar: React.FC<F10BatchActionsBarProps> = ({
   selectedCount,
   onClearSelection,
   onBatchWhatsApp,
-  onBatchExportCsv
+  onBatchExportCsv,
+  onBatchCopyReport
 }) => {
   if (selectedCount === 0) return null;
 
@@ -36,13 +39,25 @@ export const F10BatchActionsBar: React.FC<F10BatchActionsBarProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
+        {onBatchCopyReport && (
+          <button
+            type="button"
+            onClick={onBatchCopyReport}
+            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Copiar relatório formatado dos alunos selecionados para o WhatsApp"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>Copiar p/ WhatsApp</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onBatchWhatsApp}
           className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
         >
           <MessageSquare className="w-3.5 h-3.5" />
-          <span>Cobrança em Lote (WhatsApp)</span>
+          <span>Cobrança em Lote</span>
         </button>
 
         <button
@@ -51,7 +66,7 @@ export const F10BatchActionsBar: React.FC<F10BatchActionsBarProps> = ({
           className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-700"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Exportar Selecionados</span>
+          <span>Exportar CSV</span>
         </button>
       </div>
 

@@ -12,7 +12,10 @@ import {
   Layers,
   BarChart3,
   CalendarCheck2,
-  Users
+  Users,
+  Copy,
+  Check,
+  MessageSquare
 } from 'lucide-react';
 import { MatriculaAcademicaF10, RegimeFinanceiro, QuadranteRisco, F10ParseResult } from '../types/f10';
 import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
@@ -21,10 +24,12 @@ import { F10ExecutiveIndices } from '../components/f10/F10ExecutiveIndices';
 import { F10FilterBar, FilterQuadrantOption, SortOption, ViewTab } from '../components/f10/F10FilterBar';
 import { F10AcademicTable } from '../components/f10/F10AcademicTable';
 import { F10AnalyticsView } from '../components/f10/F10AnalyticsView';
+import { F10WhatsAppReportTab } from '../components/f10/F10WhatsAppReportTab';
 import { F10StudentDrawer } from '../components/f10/F10StudentDrawer';
 import { F10BatchActionsBar } from '../components/f10/F10BatchActionsBar';
 import { F10WhatsAppModal } from '../components/f10/F10WhatsAppModal';
 import { F10RetentionModal } from '../components/f10/F10RetentionModal';
+import { generateWhatsAppExecutiveReport } from '../utils/f10WhatsAppReports';
 import { 
   fetchF10MatriculasFromSupabase, 
   syncF10MatriculasToSupabase, 
@@ -77,6 +82,17 @@ export const F10AcademicView: React.FC = () => {
 
   // Seleção em Lote (Batch Actions)
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+
+  // Toast e Cópia Rápida para WhatsApp
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isQuickCopiedWhatsApp, setIsQuickCopiedWhatsApp] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => prev === msg ? null : prev);
+    }, 3500);
+  };
 
   // Sincronização Inicial com o Supabase ao Montar a Tela
   useEffect(() => {
@@ -374,6 +390,82 @@ export const F10AcademicView: React.FC = () => {
     }
   };
 
+  // Copia rápida do relatório da aba ativa diretamente para o WhatsApp
+  const handleQuickCopyCurrentTabReport = async () => {
+    if (filteredMatriculas.length === 0) {
+      showToast('Nenhum aluno encontrado na aba selecionada para gerar relatório.');
+      return;
+    }
+
+    const titles: Record<FilterQuadrantOption, string> = {
+      'INADIMPLENTES_TODOS': 'Relatório: Inadimplentes F10 (Geral)',
+      'Q1_OVERDUE_ATTENDING': 'Alunos em Aula com Débito (Recuperação Prioritária)',
+      'Q1_OVERDUE_ABSENT': 'Alunos Ausentes com Débito Vencido (Risco Duplo)',
+      'Q2_ABSENT_CHURN': 'Alunos em Risco Crítico de Evasão (≥3 Faltas)',
+      'Q3_WAITING_CANCEL': 'Fila de Retenção - Solicitações de Cancelamento',
+      'Q4_REGULAR': 'Alunos em Situação Regular / Saudável',
+      'SEM_APP': 'Alunos Sem App Smart Aluno',
+      'TODOS': 'Relatório Geral Consolidado de Matrículas'
+    };
+
+    const title = titles[selectedQuadrant] || 'Relatório de Matrículas F10';
+
+    const text = generateWhatsAppExecutiveReport({
+      matriculas: filteredMatriculas,
+      tabTitle: title,
+      periodoReferencia,
+      filterTurma: selectedTurma,
+      filterRegime: selectedRegime,
+      options: {
+        includeExecutiveSummary: true,
+        nameDisplay: 'FIRST_NAME'
+      }
+    });
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setIsQuickCopiedWhatsApp(true);
+      showToast(`✅ Relatório da aba "${titles[selectedQuadrant] || 'Ativa'}" copiado para o WhatsApp!`);
+      setTimeout(() => setIsQuickCopiedWhatsApp(false), 2500);
+    } catch {
+      showToast('⚠️ Erro ao copiar. Abra a aba "Copiar Relatório WhatsApp" para copiar manualmente.');
+    }
+  };
+
+  // Copia relatório somente dos alunos selecionados via checkbox
+  const handleBatchCopySelectedReport = async () => {
+    const selected = filteredMatriculas.filter(m => selectedStudentIds.includes(m.id));
+    if (selected.length === 0) return;
+
+    const text = generateWhatsAppExecutiveReport({
+      matriculas: selected,
+      tabTitle: `Relatório de Alunos Selecionados (${selected.length})`,
+      periodoReferencia,
+      options: {
+        includeExecutiveSummary: true,
+        nameDisplay: 'FIRST_NAME'
+      }
+    });
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+      showToast(`✅ ${selected.length} alunos selecionados copiados para o WhatsApp!`);
+    } catch {}
+  };
+
   return (
     <div className="space-y-5 max-w-[1440px] mx-auto animate-fadeIn pb-16">
       
@@ -491,9 +583,11 @@ export const F10AcademicView: React.FC = () => {
           setSelectedQuadrant('TODOS');
           setSelectedRegime('TODOS');
         }}
+        onQuickCopyWhatsApp={handleQuickCopyCurrentTabReport}
+        isQuickCopiedWhatsApp={isQuickCopiedWhatsApp}
       />
 
-      {/* 5. Conteúdo Dinâmico por Aba: Tabela Operacional de Gestão OU Painel Analítico */}
+      {/* 5. Conteúdo Dinâmico por Aba: Tabela Operacional, Painel Analítico OU Gerador WhatsApp */}
       {activeTab === 'TABELA' ? (
         <F10AcademicTable
           matriculas={filteredMatriculas}
@@ -508,7 +602,7 @@ export const F10AcademicView: React.FC = () => {
           }}
           onOpenRetentionModal={(mat) => setRetentionTargetMatricula(mat)}
         />
-      ) : (
+      ) : activeTab === 'ANALYTICS' ? (
         <F10AnalyticsView
           matriculas={matriculas}
           onSelectTurma={(turma) => {
@@ -521,6 +615,20 @@ export const F10AcademicView: React.FC = () => {
           }}
           onGoToStudentsTable={() => setActiveTab('TABELA')}
         />
+      ) : (
+        <F10WhatsAppReportTab
+          matriculas={matriculas}
+          selectedQuadrant={selectedQuadrant}
+          onSelectQuadrant={setSelectedQuadrant}
+          selectedTurma={selectedTurma}
+          onSelectTurma={setSelectedTurma}
+          selectedRegime={selectedRegime}
+          onSelectRegime={setSelectedRegime}
+          availableTurmas={availableTurmas}
+          periodoReferencia={periodoReferencia}
+          onSaveRetention={handleSaveRetention}
+          onTriggerToast={showToast}
+        />
       )}
 
       {/* 6. Barra Flutuante de Ações em Lote */}
@@ -529,6 +637,7 @@ export const F10AcademicView: React.FC = () => {
         onClearSelection={() => setSelectedStudentIds([])}
         onBatchWhatsApp={handleBatchWhatsApp}
         onBatchExportCsv={() => handleExportCsv(true)}
+        onBatchCopyReport={handleBatchCopySelectedReport}
       />
 
       {/* 7. Dossiê Completo do Aluno (Slide-Over Drawer) */}
@@ -550,6 +659,16 @@ export const F10AcademicView: React.FC = () => {
         matricula={activeWhatsAppMatricula}
         defaultMode={activeWhatsAppMode}
       />
+
+      {/* 9. Toast Notificação Flutuante de Alta Visibilidade */}
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-slate-800/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-emerald-500/50 backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
+            <Check className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="text-xs font-bold text-slate-100">{toastMessage}</span>
+        </div>
+      )}
 
       <F10RetentionModal
         isOpen={Boolean(retentionTargetMatricula)}

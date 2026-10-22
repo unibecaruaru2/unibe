@@ -15,13 +15,16 @@ import {
   ListFilter,
   ArrowUpDown,
   SlidersHorizontal,
-  TableProperties
+  TableProperties,
+  Copy,
+  Check,
+  MessageSquare
 } from 'lucide-react';
 import { QuadranteRisco, RegimeFinanceiro } from '../../types/f10';
 
 export type FilterQuadrantOption = 'TODOS' | 'INADIMPLENTES_TODOS' | QuadranteRisco | 'SEM_APP';
 export type SortOption = 'DEBITO_DESC' | 'FALTAS_DESC' | 'NOME_ASC' | 'RECENTE_DESC';
-export type ViewTab = 'TABELA' | 'ANALYTICS';
+export type ViewTab = 'TABELA' | 'ANALYTICS' | 'RELATORIO_WHATSAPP';
 
 interface F10FilterBarProps {
   searchQuery: string;
@@ -52,6 +55,8 @@ interface F10FilterBarProps {
     semApp: number;
   };
   onClearFilters: () => void;
+  onQuickCopyWhatsApp?: () => void;
+  isQuickCopiedWhatsApp?: boolean;
 }
 
 export const F10FilterBar: React.FC<F10FilterBarProps> = ({
@@ -73,7 +78,9 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
   totalCount,
   filteredCount,
   countsByQuadrant,
-  onClearFilters
+  onClearFilters,
+  onQuickCopyWhatsApp,
+  isQuickCopiedWhatsApp
 }) => {
   const hasActiveFilters = searchQuery !== '' || selectedTurma !== 'TODOS' || selectedQuadrant !== 'TODOS' || selectedRegime !== 'TODOS';
 
@@ -120,6 +127,20 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
           >
             <BarChart2 className="w-3.5 h-3.5" />
             <span>Análise & Índices</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('RELATORIO_WHATSAPP')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'RELATORIO_WHATSAPP'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+            }`}
+            title="Aba de Relatórios para copiar e colar no WhatsApp dos seus superiores"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Copiar Relatório WhatsApp</span>
           </button>
         </div>
 
@@ -244,6 +265,22 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
             </button>
           );
         })}
+
+        {onQuickCopyWhatsApp && (
+          <button
+            type="button"
+            onClick={onQuickCopyWhatsApp}
+            className={`sm:ml-auto px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
+              isQuickCopiedWhatsApp
+                ? 'bg-emerald-600 text-white border-emerald-600 scale-102'
+                : 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+            }`}
+            title="Copiar relatório formatado da aba ativa para colar no WhatsApp dos superiores"
+          >
+            {isQuickCopiedWhatsApp ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{isQuickCopiedWhatsApp ? 'Copiado para WhatsApp!' : 'Copiar Relatório desta Aba'}</span>
+          </button>
+        )}
       </div>
 
     </div>
