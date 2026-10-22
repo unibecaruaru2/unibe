@@ -166,3 +166,61 @@ DROP TRIGGER IF EXISTS trg_sync_certificate ON public.class_sessions;
 CREATE TRIGGER trg_sync_certificate
 AFTER INSERT OR UPDATE ON public.class_sessions
 FOR EACH ROW EXECUTE FUNCTION public.fn_sync_certificate_status();
+
+-- ==============================================================================
+-- 11. Tabela F10 Gestão de Evasão Acadêmica & Inadimplência Multi-Unidades
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.f10_matriculas (
+    id VARCHAR(120) PRIMARY KEY,
+    contrato VARCHAR(50) NOT NULL,
+    unidade VARCHAR(100) NOT NULL DEFAULT 'Caruaru',
+    aluno_nome VARCHAR(200) NOT NULL,
+    status_contrato VARCHAR(50) NOT NULL,
+    telefone_principal VARCHAR(50),
+    telefone_secundario VARCHAR(50),
+    whatsapp_url TEXT,
+    nascimento VARCHAR(20),
+    idade INT,
+    sexo VARCHAR(10),
+    bairro VARCHAR(100),
+    turmas JSONB DEFAULT '[]'::jsonb,
+    turmas_canonicas JSONB DEFAULT '[]'::jsonb,
+    data_matricula VARCHAR(30),
+    data_inicio VARCHAR(30),
+    ultima_presenca VARCHAR(30),
+    ultima_falta VARCHAR(30),
+    faltas_totais INT DEFAULT 0,
+    is_no_show BOOLEAN DEFAULT FALSE,
+    nunca_compareceu BOOLEAN DEFAULT FALSE,
+    origem_contrato_f10 VARCHAR(50),
+    regime VARCHAR(30),
+    proximo_vencimento VARCHAR(30),
+    valor_total VARCHAR(30),
+    valor_total_num NUMERIC(12,2) DEFAULT 0,
+    valor_pago VARCHAR(30),
+    valor_pago_num NUMERIC(12,2) DEFAULT 0,
+    valor_aberto VARCHAR(30),
+    valor_aberto_num NUMERIC(12,2) DEFAULT 0,
+    valor_vencido VARCHAR(30),
+    valor_vencido_num NUMERIC(12,2) DEFAULT 0,
+    parcelas_vencidas INT DEFAULT 0,
+    parcelas_aberto INT DEFAULT 0,
+    link_pagamento_f10 TEXT,
+    smart_aluno VARCHAR(100) DEFAULT 'Não Cadastrado',
+    smart_titular VARCHAR(100) DEFAULT 'Não Cadastrado',
+    has_app_active BOOLEAN DEFAULT FALSE,
+    quadrante_risco VARCHAR(50),
+    is_aguardando_quitado BOOLEAN DEFAULT FALSE,
+    motivo_cancelamento TEXT,
+    tratativa_tipo VARCHAR(100),
+    tratativa_notas TEXT,
+    periodo_referencia TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Garantir coluna unidade caso a tabela já exista
+ALTER TABLE public.f10_matriculas ADD COLUMN IF NOT EXISTS unidade VARCHAR(100) DEFAULT 'Caruaru';
+ALTER TABLE public.f10_matriculas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Acesso completo f10_matriculas" ON public.f10_matriculas FOR ALL USING (true);
+

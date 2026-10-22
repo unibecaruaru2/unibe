@@ -126,4 +126,28 @@ describe('Módulo de Relatórios Executivos para WhatsApp (f10WhatsAppReports)',
     assert.ok(report.includes('2388'));
     assert.ok(report.includes('2387'));
   });
+
+  it('generateWhatsAppExecutiveReport: deve incluir o nome da unidade no cabeçalho quando fornecido', () => {
+    const m1 = createMockMatricula({
+      contrato: '2.388',
+      alunoNome: 'Pietro Guilherme',
+      unidade: 'Caruaru'
+    });
+
+    const reportCaruaru = generateWhatsAppExecutiveReport({
+      matriculas: [m1],
+      tabTitle: 'Inadimplentes F10',
+      unidade: 'Caruaru'
+    });
+
+    assert.ok(reportCaruaru.includes('*UNIBE CARUARU | INADIMPLENTES F10*'));
+
+    const reportRecife = generateWhatsAppExecutiveReport({
+      matriculas: [m1],
+      tabTitle: 'Inadimplentes F10',
+      unidade: 'Recife'
+    });
+
+    assert.ok(reportRecife.includes('*UNIBE RECIFE | INADIMPLENTES F10*'));
+  });
 });

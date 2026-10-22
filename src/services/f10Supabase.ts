@@ -33,6 +33,7 @@ export async function fetchF10MatriculasFromSupabase(): Promise<SupabaseF10SyncR
       id: row.id,
       contrato: row.contrato,
       alunoNome: row.aluno_nome,
+      unidade: row.unidade || 'Caruaru',
       statusContrato: row.status_contrato,
       telefonePrincipal: row.telefone_principal || 'Sem telefone',
       telefoneSecundario: row.telefone_secundario || undefined,
@@ -100,6 +101,7 @@ export async function syncF10MatriculasToSupabase(
       id: m.id,
       contrato: m.contrato,
       aluno_nome: m.alunoNome,
+      unidade: m.unidade || 'Caruaru',
       status_contrato: m.statusContrato,
       telefone_principal: m.telefonePrincipal,
       telefone_secundario: m.telefoneSecundario || null,
@@ -142,9 +144,18 @@ export async function syncF10MatriculasToSupabase(
       updated_at: new Date().toISOString()
     }));
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('f10_matriculas')
       .upsert(payload, { onConflict: 'id' });
+
+    // Se o banco remoto ainda não tiver a coluna 'unidade', tenta sem o campo para não travar
+    if (error && error.message && error.message.toLowerCase().includes('unidade')) {
+      const fallbackPayload = payload.map(({ unidade, ...rest }) => rest);
+      const retryResult = await supabase
+        .from('f10_matriculas')
+        .upsert(fallbackPayload, { onConflict: 'id' });
+      error = retryResult.error;
+    }
 
     if (error) {
       console.error('Erro ao realizar upsert no Supabase:', error.message);

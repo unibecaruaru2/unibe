@@ -324,7 +324,13 @@ export function resolveRowDates(
 /**
  * Parser Principal de Relatório de Matrículas do F10 com Análise de Risco & Evasão
  */
-export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10ParseResult> {
+export async function parseF10ReportPdf(
+  file: File | ArrayBuffer, 
+  options: { unidade?: string } = {}
+): Promise<F10ParseResult> {
+  const unidade = options.unidade?.trim() || 'Caruaru';
+  const unidadeSlug = unidade.toLowerCase().replace(/[^a-z0-9]/g, '') || 'caruaru';
+
   try {
     const arrayBuffer = file instanceof File ? await file.arrayBuffer() : file;
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -527,9 +533,10 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
         const hasAppActive = (p1.smartAluno || '').includes('Cadastrado') || (p1.smartTitular || '').includes('Cadastrado');
 
         matriculas.push({
-          id: `f10-${p1.contrato.replace(/\D/g, '') || Math.random().toString(36).slice(2, 8)}`,
+          id: `f10-${unidadeSlug}-${p1.contrato.replace(/\D/g, '') || Math.random().toString(36).slice(2, 8)}`,
           contrato: p1.contrato,
           alunoNome: p1.alunoNome,
+          unidade,
           statusContrato: p1.statusContrato,
           telefonePrincipal: phoneData.formatted,
           telefoneSecundario: p2.fixo,
@@ -582,6 +589,7 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
     return {
       matriculas,
       periodoReferencia: periodoRef,
+      unidade,
       totalRegistros: matriculas.length
     };
   } catch (error: any) {

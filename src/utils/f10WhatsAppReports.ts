@@ -121,6 +121,7 @@ export function formatStudentReportLine(
 export interface GenerateReportParams {
   matriculas: MatriculaAcademicaF10[];
   tabTitle: string;
+  unidade?: string;
   periodoReferencia?: string;
   filterTurma?: string;
   filterRegime?: string;
@@ -133,13 +134,18 @@ export interface GenerateReportParams {
 export function generateWhatsAppExecutiveReport({
   matriculas,
   tabTitle,
+  unidade,
   periodoReferencia,
   filterTurma,
   filterRegime,
   options = {}
 }: GenerateReportParams): string {
+  const displayTitle = unidade && unidade !== 'TODAS'
+    ? `UNIBE ${unidade.toUpperCase()} | ${tabTitle.toUpperCase()}`
+    : tabTitle.toUpperCase();
+
   if (!matriculas || matriculas.length === 0) {
-    return `*RELATÓRIO: ${tabTitle.toUpperCase()}*\n_Nenhum aluno encontrado nesta seleção._`;
+    return `*RELATÓRIO: ${displayTitle}*\n_Nenhum aluno encontrado nesta seleção._`;
   }
 
   const includeSummary = options.includeExecutiveSummary ?? true;
@@ -153,8 +159,8 @@ export function generateWhatsAppExecutiveReport({
 
   const headerLines: string[] = [];
 
-  // Título em destaque do WhatsApp
-  headerLines.push(`*${tabTitle.toUpperCase()}*`);
+  // Título em destaque do WhatsApp com unidade
+  headerLines.push(`*${displayTitle}*`);
 
   // Subtítulo com filtros aplicados se houver
   const filterBadges: string[] = [];

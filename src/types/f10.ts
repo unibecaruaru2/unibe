@@ -19,6 +19,7 @@ export interface MatriculaAcademicaF10 {
   id: string;
   contrato: string;
   alunoNome: string;
+  unidade?: string; // Unidade escolar (ex: "Caruaru", "Recife", etc.)
   statusContrato: 'Ativo' | 'Aguardando' | 'Cancelado' | string;
   
   // Contato & Identificação Pessoal
@@ -151,6 +152,7 @@ export interface ExecutiveIndices {
 export interface F10ParseResult {
   matriculas: MatriculaAcademicaF10[];
   periodoReferencia?: string;
+  unidade?: string;
   totalRegistros: number;
   erros?: string[];
 }

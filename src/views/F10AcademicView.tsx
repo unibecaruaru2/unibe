@@ -15,7 +15,8 @@ import {
   Users,
   Copy,
   Check,
-  MessageSquare
+  MessageSquare,
+  Building2
 } from 'lucide-react';
 import { MatriculaAcademicaF10, RegimeFinanceiro, QuadranteRisco, F10ParseResult } from '../types/f10';
 import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
@@ -39,19 +40,40 @@ import {
 
 const STORAGE_KEY = 'unibe_f10_matriculas_v3';
 const STORAGE_PERIOD_KEY = 'unibe_f10_periodo_v3';
+const STORAGE_UNIDADE_KEY = 'unibe_f10_selected_unidade';
 
 export const F10AcademicView: React.FC = () => {
-  // Estado das Matrículas
+  // Estado das Matrículas com retrocompatibilidade de unidade
   const [matriculas, setMatriculas] = useState<MatriculaAcademicaF10[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(m => ({
+            ...m,
+            unidade: m.unidade || 'Caruaru'
+          }));
+        }
       }
     } catch {}
-    return SAMPLE_F10_MATRICULAS;
+    return SAMPLE_F10_MATRICULAS.map(m => ({ ...m, unidade: m.unidade || 'Caruaru' }));
   });
+
+  // Unidade Selecionada (Persistida)
+  const [selectedUnidade, setSelectedUnidade] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_UNIDADE_KEY) || 'Caruaru';
+    } catch {
+      return 'Caruaru';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_UNIDADE_KEY, selectedUnidade);
+    } catch {}
+  }, [selectedUnidade]);
 
   const [periodoReferencia, setPeriodoReferencia] = useState<string>(() => {
     try {
@@ -149,12 +171,44 @@ export const F10AcademicView: React.FC = () => {
     }
   };
 
-  // Handler de Novo PDF Parseado
+  // Coleta unidades únicas disponíveis (Multi-Unidades / Multi-Escola)
+  const availableUnidades = useMemo(() => {
+    const setU = new Set<string>();
+    setU.add('Caruaru');
+    matriculas.forEach(m => {
+      const u = m.unidade?.trim();
+      if (u) setU.add(u);
+    });
+    return Array.from(setU).sort();
+  }, [matriculas]);
+
+  // Subconjunto isolado da Unidade Ativa selecionada
+  const unitMatriculas = useMemo(() => {
+    if (selectedUnidade === 'TODAS') {
+      return matriculas.map(m => m.unidade ? m : { ...m, unidade: 'Caruaru' });
+    }
+    return matriculas
+      .map(m => m.unidade ? m : { ...m, unidade: 'Caruaru' })
+      .filter(m => (m.unidade || 'Caruaru').toLowerCase() === selectedUnidade.toLowerCase());
+  }, [matriculas, selectedUnidade]);
+
+  // Handler de Novo PDF Parseado (Multi-Unidade Seguro com Merge Inteligente)
   const handleParsed = async (result: F10ParseResult) => {
-    setMatriculas(result.matriculas);
+    const importUnidade = result.unidade || (selectedUnidade === 'TODAS' ? 'Caruaru' : selectedUnidade) || 'Caruaru';
+    setSelectedUnidade(importUnidade);
+
+    // Substitui somente as matrículas daquela unidade importada e mantém as outras escolas intactas
+    const updatedList = [
+      ...result.matriculas.map(m => ({ ...m, unidade: importUnidade })),
+      ...matriculas.filter(m => (m.unidade || 'Caruaru').toLowerCase() !== importUnidade.toLowerCase())
+    ];
+
+    setMatriculas(updatedList);
     const ref = result.periodoReferencia || periodoReferencia;
     setPeriodoReferencia(ref);
     setSelectedStudentIds([]);
+
+    showToast(`✅ ${result.matriculas.length} alunos importados com sucesso para a unidade "${importUnidade}"!`);
 
     setIsSyncingDb(true);
     try {
@@ -196,28 +250,39 @@ export const F10AcademicView: React.FC = () => {
   };
 
   const handleClearAll = async () => {
-    if (window.confirm('Deseja limpar as matrículas importadas do F10 em todos os dispositivos?')) {
-      setMatriculas([]);
-      setPeriodoReferencia('Nenhum relatório ativo');
-      setSelectedStudentIds([]);
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(STORAGE_PERIOD_KEY);
-        await clearF10MatriculasInSupabase();
-      } catch {}
+    const isSingleUnit = selectedUnidade !== 'TODAS';
+    const message = isSingleUnit
+      ? `Deseja limpar as matrículas da unidade "${selectedUnidade}"? As outras unidades serão preservadas.`
+      : 'Deseja limpar as matrículas de TODAS as unidades importadas no F10?';
+
+    if (window.confirm(message)) {
+      if (!isSingleUnit) {
+        setMatriculas([]);
+        setPeriodoReferencia('Nenhum relatório ativo');
+        setSelectedStudentIds([]);
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(STORAGE_PERIOD_KEY);
+          await clearF10MatriculasInSupabase();
+        } catch {}
+      } else {
+        setMatriculas(prev => prev.filter(m => (m.unidade || 'Caruaru').toLowerCase() !== selectedUnidade.toLowerCase()));
+        setSelectedStudentIds([]);
+        showToast(`Matrículas da unidade "${selectedUnidade}" foram removidas.`);
+      }
     }
   };
 
-  // Coleta turmas canônicas únicas
+  // Coleta turmas canônicas únicas da unidade ativa
   const availableTurmas = useMemo(() => {
     const setT = new Set<string>();
-    matriculas.forEach(m => {
+    unitMatriculas.forEach(m => {
       m.turmasCanonicas.forEach(tc => setT.add(tc));
     });
     return Array.from(setT).sort();
-  }, [matriculas]);
+  }, [unitMatriculas]);
 
-  // Contadores por quadrante em tempo real
+  // Contadores por quadrante em tempo real da unidade ativa
   const countsByQuadrant = useMemo(() => {
     let inadimplentesGeral = 0;
     let q1Attending = 0;
@@ -227,7 +292,7 @@ export const F10AcademicView: React.FC = () => {
     let q4Regular = 0;
     let semApp = 0;
 
-    matriculas.forEach(m => {
+    unitMatriculas.forEach(m => {
       if (m.valorVencidoNum > 0) inadimplentesGeral++;
       if (m.quadranteRisco === 'Q1_OVERDUE_ATTENDING') q1Attending++;
       if (m.quadranteRisco === 'Q1_OVERDUE_ABSENT') q1Absent++;
@@ -238,7 +303,7 @@ export const F10AcademicView: React.FC = () => {
     });
 
     return {
-      todos: matriculas.length,
+      todos: unitMatriculas.length,
       inadimplentesGeral,
       q1Attending,
       q1Absent,
@@ -247,11 +312,11 @@ export const F10AcademicView: React.FC = () => {
       q4Regular,
       semApp
     };
-  }, [matriculas]);
+  }, [unitMatriculas]);
 
   // Filtra e Ordena as matrículas em tempo real
   const filteredMatriculas = useMemo(() => {
-    const filtered = matriculas.filter(m => {
+    const filtered = unitMatriculas.filter(m => {
       // Filtros de Quadrante e Inadimplência
       if (selectedQuadrant !== 'TODOS') {
         if (selectedQuadrant === 'INADIMPLENTES_TODOS') {
@@ -413,6 +478,7 @@ export const F10AcademicView: React.FC = () => {
     const text = generateWhatsAppExecutiveReport({
       matriculas: filteredMatriculas,
       tabTitle: title,
+      unidade: selectedUnidade,
       periodoReferencia,
       filterTurma: selectedTurma,
       filterRegime: selectedRegime,
@@ -451,6 +517,7 @@ export const F10AcademicView: React.FC = () => {
     const text = generateWhatsAppExecutiveReport({
       matriculas: selected,
       tabTitle: `Relatório de Alunos Selecionados (${selected.length})`,
+      unidade: selectedUnidade,
       periodoReferencia,
       options: {
         includeExecutiveSummary: true,
@@ -501,8 +568,29 @@ export const F10AcademicView: React.FC = () => {
           </div>
         </div>
 
-        {/* Ações Globais */}
-        <div className="flex items-center gap-2">
+        {/* Seletor Executivo de Unidade Escolar (Multi-Escola) + Ações Globais */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Seletor de Unidade */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
+            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Unidade:
+            </span>
+            <select
+              value={selectedUnidade}
+              onChange={(e) => setSelectedUnidade(e.target.value)}
+              className="bg-white dark:bg-slate-800 text-xs font-black text-slate-800 dark:text-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none cursor-pointer"
+            >
+              {availableUnidades.map((u) => (
+                <option key={`opt-u-${u}`} value={u}>{u}</option>
+              ))}
+              <option value="TODAS">Todas as Unidades (Consolidado)</option>
+            </select>
+            <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md border border-blue-200/80 dark:border-blue-800/80">
+              {unitMatriculas.length} {unitMatriculas.length === 1 ? 'aluno' : 'alunos'}
+            </span>
+          </div>
+
           {matriculas.length > 0 && (
             <>
               <button
@@ -530,7 +618,7 @@ export const F10AcademicView: React.FC = () => {
                 type="button"
                 onClick={handleClearAll}
                 className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                title="Limpar todos os dados importados"
+                title={selectedUnidade === 'TODAS' ? "Limpar todas as matrículas" : `Limpar matrículas da unidade ${selectedUnidade}`}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -544,12 +632,14 @@ export const F10AcademicView: React.FC = () => {
         onParsed={handleParsed}
         isProcessing={isProcessing}
         setIsProcessing={setIsProcessing}
-        totalMatriculas={matriculas.length}
+        totalMatriculas={unitMatriculas.length}
+        availableUnidades={availableUnidades}
+        currentUnidade={selectedUnidade}
       />
 
-      {/* 3. Índices Executivos Estratégicos & Análise de Dados */}
+      {/* 3. Índices Executivos Estratégicos & Análise de Dados da Unidade Ativa */}
       <F10ExecutiveIndices
-        matriculas={matriculas}
+        matriculas={unitMatriculas}
         activeFilter={selectedQuadrant}
         onSelectFilter={(q) => {
           setSelectedQuadrant(q);
@@ -574,7 +664,7 @@ export const F10AcademicView: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         availableTurmas={availableTurmas}
-        totalCount={matriculas.length}
+        totalCount={unitMatriculas.length}
         filteredCount={filteredMatriculas.length}
         countsByQuadrant={countsByQuadrant}
         onClearFilters={() => {
@@ -604,7 +694,7 @@ export const F10AcademicView: React.FC = () => {
         />
       ) : activeTab === 'ANALYTICS' ? (
         <F10AnalyticsView
-          matriculas={matriculas}
+          matriculas={unitMatriculas}
           onSelectTurma={(turma) => {
             setSelectedTurma(turma);
             setActiveTab('TABELA');
@@ -617,13 +707,16 @@ export const F10AcademicView: React.FC = () => {
         />
       ) : (
         <F10WhatsAppReportTab
-          matriculas={matriculas}
+          matriculas={unitMatriculas}
           selectedQuadrant={selectedQuadrant}
           onSelectQuadrant={setSelectedQuadrant}
           selectedTurma={selectedTurma}
           onSelectTurma={setSelectedTurma}
           selectedRegime={selectedRegime}
           onSelectRegime={setSelectedRegime}
+          selectedUnidade={selectedUnidade}
+          onSelectUnidade={setSelectedUnidade}
+          availableUnidades={availableUnidades}
           availableTurmas={availableTurmas}
           periodoReferencia={periodoReferencia}
           onSaveRetention={handleSaveRetention}

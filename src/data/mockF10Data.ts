@@ -4,6 +4,7 @@ import { canonicalizeTurma, parseCurrencyNumber, classifyRiskQuadrant } from '..
 function createMatricula(params: {
   contrato: string;
   alunoNome: string;
+  unidade?: string;
   statusContrato: string;
   telefonePrincipal: string;
   telefoneSecundario?: string;
@@ -72,10 +73,14 @@ function createMatricula(params: {
   const digits = params.telefonePrincipal.replace(/\D/g, '');
   const cleanDigits = digits.length <= 11 ? '55' + digits : digits;
 
+  const unidade = params.unidade || 'Caruaru';
+  const unidadeSlug = unidade.toLowerCase().replace(/[^a-z0-9]/g, '');
+
   return {
-    id: `f10-${params.contrato.replace(/\D/g, '')}`,
+    id: `f10-${unidadeSlug}-${params.contrato.replace(/\D/g, '')}`,
     contrato: params.contrato,
     alunoNome: params.alunoNome,
+    unidade,
     statusContrato: params.statusContrato,
     telefonePrincipal: params.telefonePrincipal,
     telefoneSecundario: params.telefoneSecundario,

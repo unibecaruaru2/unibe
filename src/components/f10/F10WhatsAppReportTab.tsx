@@ -36,6 +36,9 @@ interface F10WhatsAppReportTabProps {
   onSelectTurma: (t: string) => void;
   selectedRegime: 'TODOS' | RegimeFinanceiro;
   onSelectRegime: (r: 'TODOS' | RegimeFinanceiro) => void;
+  selectedUnidade?: string;
+  onSelectUnidade?: (u: string) => void;
+  availableUnidades?: string[];
   availableTurmas: string[];
   periodoReferencia: string;
   onSaveRetention: (contrato: string, actionType: string, notes: string) => Promise<void>;
@@ -50,6 +53,9 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
   onSelectTurma,
   selectedRegime,
   onSelectRegime,
+  selectedUnidade = 'Caruaru',
+  onSelectUnidade,
+  availableUnidades = ['Caruaru'],
   availableTurmas,
   periodoReferencia,
   onSaveRetention,
@@ -178,6 +184,7 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     return generateWhatsAppExecutiveReport({
       matriculas: filteredList,
       tabTitle: finalTitle,
+      unidade: selectedUnidade,
       periodoReferencia,
       filterTurma: selectedTurma,
       filterRegime: selectedRegime,
@@ -186,7 +193,7 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
         nameDisplay
       }
     });
-  }, [filteredList, activeTabDef, customHeaderTitle, periodoReferencia, selectedTurma, selectedRegime, includeSummary, nameDisplay]);
+  }, [filteredList, activeTabDef, customHeaderTitle, selectedUnidade, periodoReferencia, selectedTurma, selectedRegime, includeSummary, nameDisplay]);
 
   // Copia para área de transferência com fallback
   const handleCopy = async () => {
