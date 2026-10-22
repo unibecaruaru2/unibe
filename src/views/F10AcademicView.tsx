@@ -1,22 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  FileSpreadsheet, 
   Download, 
   Trash2, 
-  ShieldAlert, 
   Cloud, 
-  CloudCheck, 
   RefreshCw,
-  Sparkles,
-  Smartphone,
-  Layers,
-  BarChart3,
-  CalendarCheck2,
-  Users,
-  Copy,
+  Building2,
   Check,
-  MessageSquare,
-  Building2
+  ShieldCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 import { MatriculaAcademicaF10, RegimeFinanceiro, QuadranteRisco, F10ParseResult } from '../types/f10';
 import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
@@ -164,14 +155,16 @@ export const F10AcademicView: React.FC = () => {
         await syncF10MatriculasToSupabase(matriculas, periodoReferencia);
       }
       setLastSyncTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      showToast('✅ Sincronizado com o banco na nuvem com sucesso!');
     } catch (err) {
       console.error(err);
+      showToast('⚠️ Erro ao sincronizar com nuvem. Modo local ativo.');
     } finally {
       setIsSyncingDb(false);
     }
   };
 
-  // Coleta unidades únicas disponíveis (Multi-Unidades / Multi-Escola)
+  // Coleta unidades únicas disponíveis
   const availableUnidades = useMemo(() => {
     const setU = new Set<string>();
     setU.add('Caruaru');
@@ -192,12 +185,11 @@ export const F10AcademicView: React.FC = () => {
       .filter(m => (m.unidade || 'Caruaru').toLowerCase() === selectedUnidade.toLowerCase());
   }, [matriculas, selectedUnidade]);
 
-  // Handler de Novo PDF Parseado (Multi-Unidade Seguro com Merge Inteligente)
+  // Handler de Novo PDF Parseado
   const handleParsed = async (result: F10ParseResult) => {
     const importUnidade = result.unidade || (selectedUnidade === 'TODAS' ? 'Caruaru' : selectedUnidade) || 'Caruaru';
     setSelectedUnidade(importUnidade);
 
-    // Substitui somente as matrículas daquela unidade importada e mantém as outras escolas intactas
     const updatedList = [
       ...result.matriculas.map(m => ({ ...m, unidade: importUnidade })),
       ...matriculas.filter(m => (m.unidade || 'Caruaru').toLowerCase() !== importUnidade.toLowerCase())
@@ -208,7 +200,7 @@ export const F10AcademicView: React.FC = () => {
     setPeriodoReferencia(ref);
     setSelectedStudentIds([]);
 
-    showToast(`✅ ${result.matriculas.length} alunos importados com sucesso para a unidade "${importUnidade}"!`);
+    showToast(`✅ ${result.matriculas.length} alunos importados para a unidade "${importUnidade}"!`);
 
     setIsSyncingDb(true);
     try {
@@ -282,7 +274,7 @@ export const F10AcademicView: React.FC = () => {
     return Array.from(setT).sort();
   }, [unitMatriculas]);
 
-  // Contadores por quadrante em tempo real da unidade ativa
+  // Contadores por categoria em tempo real
   const countsByQuadrant = useMemo(() => {
     let inadimplentesGeral = 0;
     let q1Attending = 0;
@@ -389,7 +381,7 @@ export const F10AcademicView: React.FC = () => {
     }
   };
 
-  // Exportar para CSV (selecionados ou filtrados)
+  // Exportar para CSV
   const handleExportCsv = (onlySelected = false) => {
     const listToExport = onlySelected 
       ? filteredMatriculas.filter(m => selectedStudentIds.includes(m.id))
@@ -446,7 +438,7 @@ export const F10AcademicView: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Batch WhatsApp (abre o primeiro da lista selecionada)
+  // Batch WhatsApp
   const handleBatchWhatsApp = () => {
     const selected = filteredMatriculas.filter(m => selectedStudentIds.includes(m.id));
     if (selected.length > 0) {
@@ -458,7 +450,7 @@ export const F10AcademicView: React.FC = () => {
   // Copia rápida do relatório da aba ativa diretamente para o WhatsApp
   const handleQuickCopyCurrentTabReport = async () => {
     if (filteredMatriculas.length === 0) {
-      showToast('Nenhum aluno encontrado na aba selecionada para gerar relatório.');
+      showToast('Nenhum aluno encontrado na aba selecionada.');
       return;
     }
 
@@ -505,11 +497,11 @@ export const F10AcademicView: React.FC = () => {
       showToast(`✅ Relatório da aba "${titles[selectedQuadrant] || 'Ativa'}" copiado para o WhatsApp!`);
       setTimeout(() => setIsQuickCopiedWhatsApp(false), 2500);
     } catch {
-      showToast('⚠️ Erro ao copiar. Abra a aba "Copiar Relatório WhatsApp" para copiar manualmente.');
+      showToast('⚠️ Erro ao copiar. Abra a aba "Relatórios WhatsApp" para copiar manualmente.');
     }
   };
 
-  // Copia relatório somente dos alunos selecionados via checkbox
+  // Copia relatório de alunos selecionados via checkbox
   const handleBatchCopySelectedReport = async () => {
     const selected = filteredMatriculas.filter(m => selectedStudentIds.includes(m.id));
     if (selected.length === 0) return;
@@ -534,80 +526,76 @@ export const F10AcademicView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 max-w-[1440px] mx-auto animate-fadeIn pb-16">
+    <div className="space-y-4 max-w-[1440px] mx-auto animate-fadeIn pb-16">
       
-      {/* 1. Top Header com Sincronização em Nuvem Supabase e Ações Executivas */}
-      <div className="bg-white dark:bg-[#0E1726] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      {/* 1. Header Executivo Integrado (Clean & Pro) */}
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center text-white shadow-md shadow-rose-600/30 shrink-0">
-            <ShieldAlert className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center shrink-0 border border-slate-800 dark:border-slate-700">
+            <ShieldCheck className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                 Gestão & Prevenção de Evasão Acadêmica F10
               </h1>
               
-              {/* Badge de Sincronização em Nuvem */}
-              <div 
+              {/* Badge Minimalista de Sincronização */}
+              <button
+                type="button"
                 onClick={handleForceSync}
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-                title="Sincronizado via Supabase em tempo real. Clique para sincronizar agora."
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-700"
+                title="Sincronizado na nuvem. Clique para sincronizar agora."
               >
-                {isSyncingDb ? (
-                  <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
-                ) : (
-                  <Cloud className="w-3 h-3 text-emerald-600" />
-                )}
+                <span className={`w-1.5 h-1.5 rounded-full ${isSyncingDb ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`} />
                 <span>{isSyncingDb ? 'Sincronizando...' : `Nuvem Ativa ${lastSyncTime ? `(${lastSyncTime})` : ''}`}</span>
-              </div>
+              </button>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Monitoramento inteligente de assiduidade, inadimplência e retenção com integração F10
+              Monitoramento estratégico de assiduidade, inadimplência e retenção de alunos
             </p>
           </div>
         </div>
 
-        {/* Seletor Executivo de Unidade Escolar (Multi-Escola) + Ações Globais */}
+        {/* Seletor de Unidade Escolar & Ações Globais */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Seletor de Unidade */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
-            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80">
+            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Unidade:
             </span>
             <select
               value={selectedUnidade}
               onChange={(e) => setSelectedUnidade(e.target.value)}
-              className="bg-white dark:bg-slate-800 text-xs font-black text-slate-800 dark:text-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
             >
               {availableUnidades.map((u) => (
                 <option key={`opt-u-${u}`} value={u}>{u}</option>
               ))}
               <option value="TODAS">Todas as Unidades (Consolidado)</option>
             </select>
-            <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md border border-blue-200/80 dark:border-blue-800/80">
-              {unitMatriculas.length} {unitMatriculas.length === 1 ? 'aluno' : 'alunos'}
+            <span className="text-[10px] font-mono font-semibold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.2 rounded">
+              {unitMatriculas.length}
             </span>
           </div>
 
           {matriculas.length > 0 && (
-            <>
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={handleForceSync}
                 disabled={isSyncingDb}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer"
-                title="Sincronizar dados com o Supabase agora"
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/80 transition-colors cursor-pointer"
+                title="Sincronizar com nuvem agora"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin text-blue-600' : ''}`} />
-                <span>Sincronizar</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin text-blue-500' : ''}`} />
               </button>
 
               <button
                 type="button"
                 onClick={() => handleExportCsv(false)}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/80 cursor-pointer shadow-2xs"
                 title="Exportar dados filtrados para planilha CSV"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -617,17 +605,17 @@ export const F10AcademicView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer border border-transparent hover:border-rose-200 dark:hover:border-rose-900/60"
                 title={selectedUnidade === 'TODAS' ? "Limpar todas as matrículas" : `Limpar matrículas da unidade ${selectedUnidade}`}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* 2. Barra Inteligente de Upload & Relatório F10 (Compacta e Expansível) */}
+      {/* 2. Barra Inteligente de Upload & Relatório F10 (Compacta e Retrátil) */}
       <F10Dropzone
         onParsed={handleParsed}
         isProcessing={isProcessing}
@@ -637,7 +625,7 @@ export const F10AcademicView: React.FC = () => {
         currentUnidade={selectedUnidade}
       />
 
-      {/* 3. Índices Executivos Estratégicos & Análise de Dados da Unidade Ativa */}
+      {/* 3. Grade Executiva de 4 KPIs Estratégicos */}
       <F10ExecutiveIndices
         matriculas={unitMatriculas}
         activeFilter={selectedQuadrant}
@@ -647,7 +635,7 @@ export const F10AcademicView: React.FC = () => {
         }}
       />
 
-      {/* 4. Barra Central de Filtros, Modos de Visualização e Controles */}
+      {/* 4. Barra Central de Filtros, Abas de Modo e Busca */}
       <F10FilterBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -733,7 +721,7 @@ export const F10AcademicView: React.FC = () => {
         onBatchCopyReport={handleBatchCopySelectedReport}
       />
 
-      {/* 7. Dossiê Completo do Aluno (Slide-Over Drawer) */}
+      {/* 7. Dossiê Completo do Aluno (Slide-Over Drawer 360) */}
       <F10StudentDrawer
         isOpen={Boolean(selectedStudentForDrawer)}
         onClose={() => setSelectedStudentForDrawer(null)}
@@ -753,13 +741,13 @@ export const F10AcademicView: React.FC = () => {
         defaultMode={activeWhatsAppMode}
       />
 
-      {/* 9. Toast Notificação Flutuante de Alta Visibilidade */}
+      {/* 9. Notificação Toast de Ação Executiva */}
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-slate-800/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-emerald-500/50 backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
-            <Check className="w-3.5 h-3.5 text-white" />
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-slate-800/95 text-white px-4 py-2.5 rounded-xl shadow-xl border border-slate-700/80 backdrop-blur-md flex items-center gap-2.5 animate-in fade-in slide-in-from-top-3 duration-150">
+          <div className="w-5 h-5 rounded-md bg-emerald-600 flex items-center justify-center shrink-0">
+            <Check className="w-3 h-3 text-white" />
           </div>
-          <span className="text-xs font-bold text-slate-100">{toastMessage}</span>
+          <span className="text-xs font-semibold text-slate-100">{toastMessage}</span>
         </div>
       )}
 

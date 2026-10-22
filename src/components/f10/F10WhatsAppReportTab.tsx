@@ -3,7 +3,6 @@ import {
   Copy, 
   Check, 
   MessageSquare, 
-  Send, 
   Filter, 
   ShieldAlert, 
   CalendarCheck2, 
@@ -12,19 +11,12 @@ import {
   UserX, 
   CheckCircle, 
   Smartphone, 
-  Sparkles, 
-  Settings2, 
-  ExternalLink,
-  Edit3,
-  Save,
-  CheckCircle2,
-  Users
+  Edit3
 } from 'lucide-react';
 import { MatriculaAcademicaF10, RegimeFinanceiro } from '../../types/f10';
 import { FilterQuadrantOption } from './F10FilterBar';
 import { 
   generateWhatsAppExecutiveReport, 
-  WhatsAppReportOptions,
   formatStudentReportLine
 } from '../../utils/f10WhatsAppReports';
 
@@ -54,8 +46,6 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
   selectedRegime,
   onSelectRegime,
   selectedUnidade = 'Caruaru',
-  onSelectUnidade,
-  availableUnidades = ['Caruaru'],
   availableTurmas,
   periodoReferencia,
   onSaveRetention,
@@ -87,19 +77,19 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     },
     { 
       id: 'Q1_OVERDUE_ATTENDING', 
-      label: 'Em Aula (Frequente e Devendo)', 
+      label: 'Em Aula c/ Débito', 
       icon: CalendarCheck2,
       reportTitle: 'Alunos Frequentes em Aula com Débito (Recuperação Prioritária)'
     },
     { 
       id: 'Q1_OVERDUE_ABSENT', 
-      label: 'Ausente com Débito (Risco Duplo)', 
+      label: 'Ausente c/ Débito', 
       icon: UserMinus,
       reportTitle: 'Alunos Ausentes com Débito Vencido (Risco Duplo)'
     },
     { 
       id: 'Q3_WAITING_CANCEL', 
-      label: 'Fila de Retenção (Cancelamento)', 
+      label: 'Fila de Retenção', 
       icon: UserX,
       reportTitle: 'Fila de Retenção - Solicitações de Cancelamento'
     },
@@ -111,7 +101,7 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     },
     { 
       id: 'SEM_APP', 
-      label: 'Sem App Smart Aluno', 
+      label: 'Sem App Smart', 
       icon: Smartphone,
       reportTitle: 'Alunos Sem Cadastro no App Smart Aluno'
     },
@@ -129,12 +119,10 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     }
   ];
 
-  // Filtra as matrículas conforme a aba e seletores ativos
   const activeTabDef = tabDefs.find(t => t.id === selectedQuadrant) || tabDefs[0];
 
   const filteredList = useMemo(() => {
     return matriculas.filter(m => {
-      // Filtro de Quadrante / Categoria
       if (selectedQuadrant !== 'TODOS') {
         if (selectedQuadrant === 'INADIMPLENTES_TODOS') {
           if (m.valorVencidoNum <= 0) return false;
@@ -145,12 +133,10 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
         }
       }
 
-      // Filtro de Regime
       if (selectedRegime !== 'TODOS' && m.regime !== selectedRegime) {
         return false;
       }
 
-      // Filtro de Turma
       if (selectedTurma !== 'TODOS' && !m.turmasCanonicas.includes(selectedTurma)) {
         return false;
       }
@@ -159,7 +145,6 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     });
   }, [matriculas, selectedQuadrant, selectedRegime, selectedTurma]);
 
-  // Contadores rápidos por aba para badges
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     tabDefs.forEach(t => {
@@ -173,12 +158,10 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     return counts;
   }, [matriculas]);
 
-  // Total de débito da seleção
   const totalDebito = useMemo(() => {
     return filteredList.reduce((acc, m) => acc + (m.valorVencidoNum || 0), 0);
   }, [filteredList]);
 
-  // Gera o texto para o WhatsApp em tempo real
   const generatedWhatsAppText = useMemo(() => {
     const finalTitle = customHeaderTitle.trim() || activeTabDef.reportTitle;
     return generateWhatsAppExecutiveReport({
@@ -195,7 +178,6 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     });
   }, [filteredList, activeTabDef, customHeaderTitle, selectedUnidade, periodoReferencia, selectedTurma, selectedRegime, includeSummary, nameDisplay]);
 
-  // Copia para área de transferência com fallback
   const handleCopy = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -211,15 +193,14 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
         document.body.removeChild(textarea);
       }
       setIsCopied(true);
-      onTriggerToast('✅ Relatório copiado! Pronto para colar no WhatsApp dos seus superiores.');
+      onTriggerToast('✅ Relatório copiado para o WhatsApp com sucesso!');
       setTimeout(() => setIsCopied(false), 2500);
     } catch (e) {
       console.error(e);
-      onTriggerToast('⚠️ Não foi possível copiar automaticamente. Selecione o texto e use Ctrl+C.');
+      onTriggerToast('⚠️ Selecione o texto e use Ctrl+C para copiar.');
     }
   };
 
-  // Salva observação rápida do aluno
   const handleStartEditNote = (mat: MatriculaAcademicaF10) => {
     setEditingContrato(mat.contrato);
     setTempNote(mat.tratativaNotas || '');
@@ -230,67 +211,61 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
     try {
       await onSaveRetention(contrato, 'RELATORIO_WHATSAPP', tempNote);
       setEditingContrato(null);
-      onTriggerToast(`Observação do contrato #${contrato} atualizada com sucesso!`);
+      onTriggerToast(`Observação do contrato #${contrato} atualizada!`);
     } finally {
       setIsSavingNote(false);
     }
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn">
-      {/* 1. Header Explicativo com Estatísticas */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-900/10">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
-              <MessageSquare className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black tracking-tight">
-                  Gerador de Relatórios Executivos para WhatsApp
-                </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/25 text-white uppercase tracking-wider">
-                  Direto & Sem Poluição
-                </span>
-              </div>
-              <p className="text-xs text-emerald-100 mt-1 max-w-2xl leading-relaxed">
-                Relatórios sintetizados por categoria/aba pensados especialmente para superiores que têm pouco tempo. 
-                Copie com 1 clique e cole diretamente nas conversas ou grupos do WhatsApp.
-              </p>
-            </div>
+    <div className="space-y-4 animate-fadeIn">
+      {/* 1. Header Executivo */}
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-900/60">
+            <MessageSquare className="w-5 h-5" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 shadow-md cursor-pointer ${
-                isCopied 
-                  ? 'bg-white text-emerald-700 scale-105' 
-                  : 'bg-emerald-500 hover:bg-emerald-400 text-white hover:scale-102'
-              }`}
-            >
-              {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              <span>{isCopied ? 'Copiado para o WhatsApp!' : 'Copiar Relatório da Aba'}</span>
-            </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Gerador de Relatórios Executivos para WhatsApp
+              </h2>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                Direto & Sem Ruído
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Relatórios formatados prontos para colar nas conversas com a diretoria e coordenação
+            </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-2xs ${
+            isCopied 
+              ? 'bg-emerald-600 text-white' 
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+          }`}
+        >
+          {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          <span>{isCopied ? 'Copiado para WhatsApp!' : 'Copiar Relatório da Aba'}</span>
+        </button>
       </div>
 
-      {/* 2. Seleção da Aba / Categoria para Relatório */}
-      <div className="bg-white dark:bg-[#0E1726] rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3">
+      {/* 2. Seleção de Categoria & Opções */}
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800/80 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-            <Filter className="w-3.5 h-3.5 text-blue-500" />
-            <span>1. Escolha a Aba que Deseja Reportar:</span>
-          </div>
-          <span className="text-xs font-bold text-slate-400">
-            {filteredList.length} {filteredList.length === 1 ? 'aluno selecionado' : 'alunos selecionados'}
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Selecione a Categoria para Gerar:
+          </span>
+          <span className="text-xs font-medium text-slate-400">
+            {filteredList.length} registros
           </span>
         </div>
 
-        {/* Grade de Pílulas das Abas */}
+        {/* Grade de Categorias */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {tabDefs.map((tab) => {
             const Icon = tab.icon;
@@ -304,21 +279,21 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
                 onClick={() => onSelectQuadrant(tab.id)}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                   isSelected
-                    ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20 shadow-xs'
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900 dark:border-slate-100 shadow-2xs font-semibold'
                     : 'bg-slate-50/70 hover:bg-slate-100 dark:bg-slate-900/50 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <Icon className={`w-4 h-4 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`} />
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white dark:text-slate-900' : 'text-slate-400'}`} />
+                  <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
                     isSelected 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-white/20 dark:bg-black/10' 
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}>
                     {count}
                   </span>
                 </div>
-                <div className="text-xs font-bold leading-tight line-clamp-1 mt-1">
+                <div className="text-xs leading-tight line-clamp-1 mt-0.5">
                   {tab.label}
                 </div>
               </button>
@@ -326,16 +301,16 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
           })}
         </div>
 
-        {/* Filtros Complementares: Turma, Regime e Opções de Formato */}
+        {/* Filtros e Ajuste de Formatação */}
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-2">
             {/* Turma */}
             <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <span className="text-slate-400 font-semibold">Turma:</span>
+              <span className="text-slate-400">Turma:</span>
               <select
                 value={selectedTurma}
                 onChange={(e) => onSelectTurma(e.target.value)}
-                className="bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer font-bold"
+                className="bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer font-semibold"
               >
                 <option value="TODOS">Todas as Turmas</option>
                 {availableTurmas.map(t => (
@@ -346,152 +321,122 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
 
             {/* Regime */}
             <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <span className="text-slate-400 font-semibold">Regime:</span>
+              <span className="text-slate-400">Regime:</span>
               <select
                 value={selectedRegime}
                 onChange={(e) => onSelectRegime(e.target.value as any)}
-                className="bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer font-bold"
+                className="bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer font-semibold"
               >
-                <option value="TODOS">Todos Regimes</option>
+                <option value="TODOS">Todos os Regimes</option>
                 <option value="QUITADO">À Vista / SAV</option>
                 <option value="CARNE_MENSALISTA">Carnê Mensalista</option>
               </select>
             </div>
           </div>
 
-          {/* Formatação Visual */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Exibição de Nome */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
-              <span className="px-2 text-[10px] font-bold text-slate-400 uppercase">Identificação:</span>
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setNameDisplay('FIRST_NAME')}
-                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                   nameDisplay === 'FIRST_NAME' 
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs' 
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
-                title="Exibe CTR (PRIMEIRO NOME)"
               >
                 CTR + Nome Curto
               </button>
               <button
                 type="button"
                 onClick={() => setNameDisplay('NONE')}
-                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                   nameDisplay === 'NONE' 
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs' 
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
-                title="Apenas o número do contrato"
               >
                 Apenas Contrato
               </button>
               <button
                 type="button"
                 onClick={() => setNameDisplay('FULL_NAME')}
-                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                   nameDisplay === 'FULL_NAME' 
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs' 
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
-                title="Nome completo do aluno"
               >
                 Nome Completo
               </button>
             </div>
 
-            {/* Alternar Resumo no Topo */}
-            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-600 dark:text-slate-300">
               <input
                 type="checkbox"
                 checked={includeSummary}
                 onChange={(e) => setIncludeSummary(e.target.checked)}
                 className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
               />
-              <span>Incluir Resumo no Topo</span>
+              <span>Resumo no Topo</span>
             </label>
           </div>
         </div>
       </div>
 
-      {/* 3. Seção Principal com Divisão em 2 Colunas: Prévia do WhatsApp + Editor Rápido de Notas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      {/* 3. Prévia do WhatsApp + Editor Rápido */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         
-        {/* Coluna Esquerda: Preview Estilo WhatsApp (6 cols) */}
-        <div className="lg:col-span-7 space-y-3">
-          <div className="bg-[#0b141a] text-slate-100 rounded-2xl border border-emerald-900/30 p-4 shadow-xl relative overflow-hidden">
-            {/* Header Barra WhatsApp */}
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-950/60">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
-                  WA
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">
-                    Prévia da Mensagem (WhatsApp)
-                  </h4>
-                  <p className="text-[10px] text-emerald-400">
-                    Formato pronto com negritos e marcadores executivos
-                  </p>
-                </div>
-              </div>
+        {/* Preview WhatsApp */}
+        <div className="lg:col-span-7 bg-white dark:bg-[#0F172A] rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800/80 shadow-xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              Prévia Formatada da Mensagem:
+            </span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>Copiar</span>
+            </button>
+          </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isCopied
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-emerald-700/80 hover:bg-emerald-600 text-white'
-                  }`}
-                >
-                  {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{isCopied ? 'Copiado!' : 'Copiar Texto'}</span>
-                </button>
-              </div>
-            </div>
+          <div className="bg-slate-50 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 rounded-xl p-3.5 font-mono text-xs leading-relaxed whitespace-pre-wrap max-h-[460px] overflow-y-auto select-all border border-slate-200/70 dark:border-slate-800">
+            {generatedWhatsAppText}
+          </div>
 
-            {/* Balão de Mensagem WhatsApp */}
-            <div className="bg-[#1f2c34] text-[#e9edef] rounded-xl p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap max-h-[500px] overflow-y-auto select-all shadow-inner border border-emerald-900/20">
-              {generatedWhatsAppText}
-            </div>
-
-            {/* Rodapé da Prévia */}
-            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-              <span>{filteredList.length} linhas geradas</span>
-              {totalDebito > 0 && (
-                <span className="font-bold text-emerald-400">
-                  Débito Total: R$ {totalDebito.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
-              )}
-            </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 font-mono">
+            <span>{filteredList.length} linhas geradas</span>
+            {totalDebito > 0 && (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                Débito: R$ {totalDebito.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Coluna Direita: Personalização Rápida de Notas por Aluno (5 cols) */}
-        <div className="lg:col-span-5 bg-white dark:bg-[#0E1726] rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3">
+        {/* Editor Rápido de Notas */}
+        <div className="lg:col-span-5 bg-white dark:bg-[#0F172A] rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800/80 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Edit3 className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-xs font-black uppercase text-slate-700 dark:text-slate-200 tracking-wider">
-                Personalizar Notas da Aba
+              <Edit3 className="w-4 h-4 text-slate-500" />
+              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                Personalizar Notas por Aluno
               </h3>
             </div>
-            <span className="text-[10px] text-slate-400 font-medium">
-              Clique no aluno para editar a nota
+            <span className="text-[10px] text-slate-400">
+              Clique para editar
             </span>
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Como no exemplo fornecido (<span className="italic font-semibold text-slate-600 dark:text-slate-300">"Mãe internada...", "Ele foi bolsa...", "Sinalizou cancelamento..."</span>), 
-            você pode adicionar uma observação específica para qualquer aluno. Ela substituirá o status automático no relatório.
+            Adicione observações manuais que substituirão a linha automática no relatório final.
           </p>
 
-          {/* Lista de Alunos com Editor Rápido */}
-          <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
             {filteredList.map((mat) => {
               const isEditing = editingContrato === mat.contrato;
               const hasCustomNote = Boolean(mat.tratativaNotas?.trim());
@@ -503,14 +448,14 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
                     isEditing 
                       ? 'bg-blue-50/50 dark:bg-blue-950/40 border-blue-400' 
                       : hasCustomNote 
-                      ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40' 
-                      : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                      ? 'bg-amber-50/30 dark:bg-amber-950/20 border-amber-200/70 dark:border-amber-900/40' 
+                      : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100">
-                        <span className="font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px]">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100">
+                        <span className="font-mono bg-slate-200/80 dark:bg-slate-800 px-1 py-0.2 rounded text-[10px]">
                           CTR {mat.contrato}
                         </span>
                         <span className="line-clamp-1">{mat.alunoNome}</span>
@@ -531,14 +476,13 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
                       <button
                         type="button"
                         onClick={() => handleStartEditNote(mat)}
-                        className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 text-[10px] font-bold cursor-pointer shrink-0 transition-colors"
+                        className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 text-[10px] font-medium cursor-pointer shrink-0 transition-colors"
                       >
-                        {hasCustomNote ? 'Editar Nota' : '+ Adicionar Nota'}
+                        {hasCustomNote ? 'Editar' : '+ Nota'}
                       </button>
                     )}
                   </div>
 
-                  {/* Campo de Edição Aberto */}
                   {isEditing && (
                     <div className="mt-2 space-y-2 pt-2 border-t border-blue-200/60 dark:border-blue-900/40">
                       <textarea
@@ -546,13 +490,13 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
                         value={tempNote}
                         onChange={(e) => setTempNote(e.target.value)}
                         placeholder="Ex: ELE FOI BOLSA E ESTÁ COM PARCELA DEVENDO..."
-                        className="w-full p-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
                       />
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => setEditingContrato(null)}
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
                         >
                           Cancelar
                         </button>
@@ -560,7 +504,7 @@ export const F10WhatsAppReportTab: React.FC<F10WhatsAppReportTabProps> = ({
                           type="button"
                           onClick={() => handleSaveQuickNote(mat.contrato)}
                           disabled={isSavingNote}
-                          className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
                         >
                           {isSavingNote ? 'Salvando...' : 'Salvar Nota'}
                         </button>
