@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { classificarRegime, parseTurmas, sanitizePhoneToWhatsApp } from './f10Parser';
+import { classificarRegime, parseTurmas, sanitizePhoneToWhatsApp, resolveRowDates } from './f10Parser';
 import { canonicalizeTurma, classifyRiskQuadrant, parseCurrencyNumber, calculateF10Kpis } from '../utils/f10Analytics';
 import { SAMPLE_F10_MATRICULAS } from '../data/mockF10Data';
 
@@ -107,6 +107,59 @@ describe('Módulo de Prevenção de Evasão, Inadimplência Geral & Sincronizaç
       assert.strictEqual(formatted, '(81) 98162-7167');
       assert.strictEqual(cleanDigits, '5581981627167');
       assert.strictEqual(waUrl, 'https://wa.me/5581981627167');
+    });
+  });
+
+  describe('resolveRowDates() - Resolução Posicional X de Datas F10 (Caso Francine CTR 2288)', () => {
+    test('deve resolver corretamente Francine CTR 2288 com Última Presença 17/10/2026 e Matrícula 06/05/2026', () => {
+      // Simula linha extraída com itens e coordenadas X reais do relatório F10
+      const mockLine = {
+        y: 450,
+        fullText: 'Ativo 06/05/2026 17/10/2026 Mirim.7- Manhã - Raphael Nonato',
+        items: [
+          { text: 'Ativo', x: 125, y: 450, width: 25 },
+          { text: '17/10/2026', x: 235, y: 450, width: 45 }, // Coluna Presença (x ~ 235)
+          { text: '06/05/2026', x: 290, y: 450, width: 45 }, // Coluna Matrícula (x ~ 290)
+          { text: 'Mirim.7- Manhã - Raphael Nonato', x: 360, y: 450, width: 120 }
+        ]
+      };
+
+      const headerCols = {
+        xPresenca: 235,
+        xMatricula: 290
+      };
+
+      const dates = resolveRowDates(mockLine, headerCols);
+      assert.strictEqual(dates.ultimaPresenca, '17/10/2026', 'Última presença deve ser 17/10/2026');
+      assert.strictEqual(dates.dataMatricula, '06/05/2026', 'Data de matrícula deve ser 06/05/2026');
+    });
+
+    test('deve identificar aluna que NUNCA compareceu quando coluna presença estiver sem data', () => {
+      const mockLine = {
+        y: 420,
+        fullText: 'Ativo 15/08/2026 Mirim.7- Manhã',
+        items: [
+          { text: 'Ativo', x: 125, y: 420, width: 25 },
+          { text: '15/08/2026', x: 290, y: 420, width: 45 }, // Apenas Data Matrícula (x ~ 290)
+          { text: 'Mirim.7- Manhã', x: 360, y: 420, width: 90 }
+        ]
+      };
+
+      const headerCols = {
+        xPresenca: 235,
+        xMatricula: 290
+      };
+
+      const dates = resolveRowDates(mockLine, headerCols);
+      assert.strictEqual(dates.ultimaPresenca, undefined, 'Última presença deve ser undefined para aluna que nunca veio');
+      assert.strictEqual(dates.dataMatricula, '15/08/2026', 'Data de matrícula deve ser 15/08/2026');
+    });
+  });
+
+  describe('calculateF10Kpis() - Métricas de Alunos que Nunca Compareceram', () => {
+    test('deve contabilizar totalNuncaCompareceram na base', () => {
+      const kpis = calculateF10Kpis(SAMPLE_F10_MATRICULAS);
+      assert.ok(kpis.totalNuncaCompareceram > 0, 'Deve ter alunos sinalizados que nunca compareceram à aula presencial');
     });
   });
 });

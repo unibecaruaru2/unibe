@@ -189,6 +189,8 @@ export const F10AcademicView: React.FC = () => {
           if (m.valorVencidoNum <= 0) return false;
         } else if (selectedQuadrant === 'SEM_APP') {
           if (m.hasAppActive) return false;
+        } else if (selectedQuadrant === 'NUNCA_COMPARECEU') {
+          if (!m.nuncaCompareceu && m.ultimaPresenca) return false;
         } else if (m.quadranteRisco !== selectedQuadrant) {
           return false;
         }

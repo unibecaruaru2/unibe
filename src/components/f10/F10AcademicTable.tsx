@@ -193,12 +193,15 @@ export const F10AcademicTable: React.FC<F10AcademicTableProps> = ({
 
                       <div className="text-[10px] text-slate-500 space-y-0.5">
                         {mat.ultimaPresenca ? (
-                          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
-                            <Calendar className="w-3 h-3" />
+                          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold">
+                            <Calendar className="w-3.5 h-3.5" />
                             <span>Última presença: {mat.ultimaPresenca}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic">Nunca compareceu</span>
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50 dark:bg-amber-950/70 border border-amber-200/90 dark:border-amber-800 text-amber-800 dark:text-amber-200 font-bold text-[10px]">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span>Nunca compareceu à aula presencial</span>
+                          </div>
                         )}
 
                         {mat.ultimaFalta && (

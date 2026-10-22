@@ -40,6 +40,7 @@ export interface MatriculaAcademicaF10 {
   ultimaFalta?: string;
   faltasTotais: number;
   isNoShow: boolean; // Se tem faltas acumuladas e nenhuma presença registrada
+  nuncaCompareceu: boolean; // Verdadeiro quando a aluna nunca veio para aula presencial (sem data de presença)
   
   // Financeiro & F10
   origemContratoF10: 'A.V' | 'S.A.V' | 'Venda' | 'Bolsa' | 'A.C' | string;
@@ -91,6 +92,60 @@ export interface F10KpisData {
   cancelamentosQuitadosRiscoEstorno: number;
   alunosSemApp: number;
   alunosNoShow: number;
+  totalNuncaCompareceram: number; // Quantidade de alunos que nunca vieram à aula presencial
+
+  // Totais de Contratos e Valores Globais
+  receitaTotalContratada: number;
+  receitaTotalPaga: number;
+  receitaTotalAberto: number;
+}
+
+export interface TurmaAnalyticItem {
+  turma: string;
+  totalAlunos: number;
+  alunosInadimplentes: number;
+  valorVencido: number;
+  taxaInadimplencia: number;
+  mediaFaltas: number;
+  alunosRisco: number;
+  taxaPresenca: number;
+}
+
+export interface ExecutiveIndices {
+  // Índice de Evasão Global (0 - 100%)
+  taxaRiscoEvasao: number;
+  classificacaoEvasao: 'CONTROLADO' | 'ATENÇÃO' | 'CRÍTICO';
+  
+  // Índice de Recuperabilidade de Débito (0 - 100%)
+  taxaRecuperabilidade: number;
+  capitalEmAulaRecuperavel: number;
+  capitalAusenteRiscoPerda: number;
+  capitalQuitadoRiscoEstorno: number;
+
+  // Índice de Saúde Acadêmica / Assiduidade
+  taxaAssiduidade: number;
+  taxaNoShow: number;
+  alunosNuncaCompareceram: number;
+
+  // Índice de Engajamento Digital
+  taxaAdocaoApp: number;
+  totalSemApp: number;
+
+  // Distribuições
+  turmas: TurmaAnalyticItem[];
+  distribuicaoRegime: {
+    quitadosCount: number;
+    quitadosPercent: number;
+    carneCount: number;
+    carnePercent: number;
+  };
+  distribuicaoQuadrantes: {
+    q1Attending: number;
+    q1Absent: number;
+    q2Churn: number;
+    q3Cancel: number;
+    q4Regular: number;
+  };
 }
 
 export interface F10ParseResult {

@@ -56,7 +56,7 @@ export function parseCurrencyNumber(val?: string | null): number {
 }
 
 /**
- * Verifica se a presença registrada é recente (dentro de 30 dias em relação ao mês vigente).
+ * Verifica se a presença registrada é recente (dentro de 45 dias em relação ao período do relatório).
  */
 export function isPresenceRecent(ultimaPresenca?: string): boolean {
   if (!ultimaPresenca) return false;
@@ -64,6 +64,7 @@ export function isPresenceRecent(ultimaPresenca?: string): boolean {
   if (parts.length === 3) {
     const mes = parseInt(parts[1], 10);
     const ano = parseInt(parts[2], 10);
+    // Presenças em Outubro ou Setembro são recentes
     if ((ano === 2026 || ano === 26) && (mes === 10 || mes === 9)) {
       return true;
     }
@@ -73,7 +74,6 @@ export function isPresenceRecent(ultimaPresenca?: string): boolean {
 
 /**
  * Classifica o aluno na Matriz de 4 Quadrantes Operacionais
- * Agora com suporte explícito a Inadimplente Frequentando E Inadimplente Ausente!
  */
 export function classifyRiskQuadrant(params: {
   statusContrato: string;
@@ -91,10 +91,8 @@ export function classifyRiskQuadrant(params: {
   // Se tem valor vencido > 0:
   if (params.valorVencidoNum > 0) {
     if (isPresenceRecent(params.ultimaPresenca)) {
-      // Q1: Inadimplente Frequentando (Alto Potencial de Recuperação)
       return 'Q1_OVERDUE_ATTENDING';
     }
-    // Q1: Inadimplente Ausente (Risco Duplo: Financeiro + Evasão)
     return 'Q1_OVERDUE_ABSENT';
   }
 
@@ -123,8 +121,12 @@ export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisDa
   let cancelamentosQuitadosRiscoEstorno = 0;
   let alunosSemApp = 0;
   let alunosNoShow = 0;
+  let totalNuncaCompareceram = 0;
   let totalQuitados = 0;
   let totalCarne = 0;
+  let receitaTotalContratada = 0;
+  let receitaTotalPaga = 0;
+  let receitaTotalAberto = 0;
 
   const turmasSet = new Set<string>();
 
@@ -132,7 +134,16 @@ export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisDa
     if (m.regime === 'QUITADO') totalQuitados++;
     if (m.regime === 'CARNE_MENSALISTA') totalCarne++;
 
+    receitaTotalContratada += m.valorTotalNum || 0;
+    receitaTotalPaga += m.valorPagoNum || 0;
+    receitaTotalAberto += m.valorAbertoNum || 0;
+
     m.turmasCanonicas.forEach(t => turmasSet.add(t));
+
+    // Se não tem presença registrada
+    if (!m.ultimaPresenca || m.nuncaCompareceu) {
+      totalNuncaCompareceram++;
+    }
 
     // Inadimplência Geral
     if (m.valorVencidoNum > 0) {
@@ -187,6 +198,130 @@ export function calculateF10Kpis(matriculas: MatriculaAcademicaF10[]): F10KpisDa
     solicitacoesCancelamento,
     cancelamentosQuitadosRiscoEstorno,
     alunosSemApp,
-    alunosNoShow
+    alunosNoShow,
+    totalNuncaCompareceram,
+    receitaTotalContratada,
+    receitaTotalPaga,
+    receitaTotalAberto
+  };
+}
+
+/**
+ * Calcula os Índices Executivos e Análise Multidimensional (Turmas, Regimes e Quadrantes)
+ */
+export function calculateExecutiveIndices(matriculas: MatriculaAcademicaF10[]): import('../types/f10').ExecutiveIndices {
+  const total = matriculas.length || 1;
+  const kpis = calculateF10Kpis(matriculas);
+
+  // Alunos em risco real = Inadimplente ausente + Risco de evasão (faltas) + Cancelamento
+  const totalAlunosEmRisco = kpis.alunosInadimplentesAusentes + kpis.alunosRiscoEvasao + kpis.solicitacoesCancelamento;
+  const taxaRiscoEvasao = Math.round((totalAlunosEmRisco / total) * 100);
+
+  let classificacaoEvasao: 'CONTROLADO' | 'ATENÇÃO' | 'CRÍTICO' = 'CONTROLADO';
+  if (taxaRiscoEvasao > 35) {
+    classificacaoEvasao = 'CRÍTICO';
+  } else if (taxaRiscoEvasao > 18) {
+    classificacaoEvasao = 'ATENÇÃO';
+  }
+
+  // Taxa de recuperabilidade = % do valor vencido que está sendo frequentado
+  const taxaRecuperabilidade = kpis.receitaTotalVencida > 0 
+    ? Math.round((kpis.receitaVencidaFrequentando / kpis.receitaTotalVencida) * 100) 
+    : 100;
+
+  // Assiduidade = alunos com menos de 3 faltas e com presença registrada
+  const alunosComPresencaAtiva = matriculas.filter(m => m.ultimaPresenca && m.faltasTotais < 3).length;
+  const taxaAssiduidade = Math.round((alunosComPresencaAtiva / total) * 100);
+
+  // Taxa de No-Show
+  const taxaNoShow = Math.round((kpis.totalNuncaCompareceram / total) * 100);
+
+  // Adoção App Smart
+  const alunosComApp = matriculas.filter(m => m.hasAppActive).length;
+  const taxaAdocaoApp = Math.round((alunosComApp / total) * 100);
+
+  // Calcular valor de estorno sob risco (quitados em cancelamento)
+  let capitalQuitadoRiscoEstorno = 0;
+  matriculas.forEach(m => {
+    if (m.isAguardandoQuitado) {
+      capitalQuitadoRiscoEstorno += m.valorPagoNum || m.valorTotalNum || 0;
+    }
+  });
+
+  // Agrupamento por Turma Canônica
+  const turmasMap = new Map<string, {
+    total: number;
+    inadimplentes: number;
+    valorVencido: number;
+    somaFaltas: number;
+    risco: number;
+    comPresenca: number;
+  }>();
+
+  matriculas.forEach(m => {
+    m.turmasCanonicas.forEach(tc => {
+      if (!turmasMap.has(tc)) {
+        turmasMap.set(tc, {
+          total: 0,
+          inadimplentes: 0,
+          valorVencido: 0,
+          somaFaltas: 0,
+          risco: 0,
+          comPresenca: 0
+        });
+      }
+      const item = turmasMap.get(tc)!;
+      item.total++;
+      if (m.valorVencidoNum > 0) {
+        item.inadimplentes++;
+        item.valorVencido += m.valorVencidoNum;
+      }
+      item.somaFaltas += m.faltasTotais;
+      if (m.quadranteRisco !== 'Q4_REGULAR') {
+        item.risco++;
+      }
+      if (m.ultimaPresenca) {
+        item.comPresenca++;
+      }
+    });
+  });
+
+  const turmas: import('../types/f10').TurmaAnalyticItem[] = Array.from(turmasMap.entries()).map(([turma, data]) => ({
+    turma,
+    totalAlunos: data.total,
+    alunosInadimplentes: data.inadimplentes,
+    valorVencido: data.valorVencido,
+    taxaInadimplencia: data.total > 0 ? Math.round((data.inadimplentes / data.total) * 100) : 0,
+    mediaFaltas: data.total > 0 ? Number((data.somaFaltas / data.total).toFixed(1)) : 0,
+    alunosRisco: data.risco,
+    taxaPresenca: data.total > 0 ? Math.round((data.comPresenca / data.total) * 100) : 0
+  })).sort((a, b) => b.totalAlunos - a.totalAlunos);
+
+  return {
+    taxaRiscoEvasao,
+    classificacaoEvasao,
+    taxaRecuperabilidade,
+    capitalEmAulaRecuperavel: kpis.receitaVencidaFrequentando,
+    capitalAusenteRiscoPerda: kpis.receitaVencidaAusentes,
+    capitalQuitadoRiscoEstorno,
+    taxaAssiduidade,
+    taxaNoShow,
+    alunosNuncaCompareceram: kpis.totalNuncaCompareceram,
+    taxaAdocaoApp,
+    totalSemApp: kpis.alunosSemApp,
+    turmas,
+    distribuicaoRegime: {
+      quitadosCount: kpis.totalQuitados,
+      quitadosPercent: Math.round((kpis.totalQuitados / total) * 100),
+      carneCount: kpis.totalCarne,
+      carnePercent: Math.round((kpis.totalCarne / total) * 100)
+    },
+    distribuicaoQuadrantes: {
+      q1Attending: kpis.alunosInadimplentesFrequentando,
+      q1Absent: kpis.alunosInadimplentesAusentes,
+      q2Churn: kpis.alunosRiscoEvasao,
+      q3Cancel: kpis.solicitacoesCancelamento,
+      q4Regular: matriculas.filter(m => m.quadranteRisco === 'Q4_REGULAR').length
+    }
   };
 }

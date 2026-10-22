@@ -62,6 +62,7 @@ function createMatricula(params: {
   });
 
   const isNoShow = params.faltasTotais >= 3 && !params.ultimaPresenca;
+  const nuncaCompareceu = !params.ultimaPresenca;
   const isAguardando = params.statusContrato.toLowerCase().includes('aguardando');
   const isAguardandoQuitado = isAguardando && isQuitado;
 
@@ -91,6 +92,7 @@ function createMatricula(params: {
     ultimaFalta: params.ultimaFalta,
     faltasTotais: params.faltasTotais,
     isNoShow,
+    nuncaCompareceu,
     origemContratoF10: params.origemContratoF10,
     regime,
     valorTotal: params.valorTotal,
@@ -114,7 +116,33 @@ function createMatricula(params: {
 }
 
 export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
-  // 1. Q1: Inadimplente Frequentando (Presença recente em 10/2026 e parcela vencida)
+  // 1. Caso Real Específico: Francine Rodrigues da Silva (CTR 2.288) - Matrícula em Maio, Última Presença 17/10!
+  createMatricula({
+    contrato: '2.288',
+    alunoNome: 'Francine Rodrigues da Silva',
+    statusContrato: 'Ativo',
+    telefonePrincipal: '(81) 98124-5590',
+    bairro: 'Vassoural',
+    rawTurma: 'Mirim.7- Manhã - Raphael Nonato',
+    dataMatricula: '06/05/2026',
+    dataInicio: '09/05/2026',
+    ultimaPresenca: '17/10/2026', // CORRETO: 17/10/2026
+    faltasTotais: 1,
+    origemContratoF10: 'Venda',
+    valorTotal: 'R$ 3.180,00',
+    valorPago: 'R$ 1.060,00',
+    valorAberto: 'R$ 2.120,00',
+    valorVencido: 'R$ 0,00',
+    parcelasVencidas: 0,
+    parcelasAberto: 8,
+    smartAluno: 'Cadastrado',
+    smartTitular: 'Cadastrado',
+    linkPagamentoF10: 'https://r.f10.com.br/FR2288',
+    idade: 12,
+    sexo: 'F'
+  }),
+
+  // 2. Q1: Inadimplente Frequentando (Presença recente em 10/2026 e parcela vencida)
   createMatricula({
     contrato: '2.349',
     alunoNome: 'Davi Eliaquim Ferreira dos Santos',
@@ -163,33 +191,55 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     idade: 6,
     sexo: 'M'
   }),
+
+  // 3. Caso de Aluna que NUNCA veio para a aula presencial (Sem data de presença)
   createMatricula({
-    contrato: '2.358',
-    alunoNome: 'Carlos Henrique dos Santos Silva',
+    contrato: '2.346',
+    alunoNome: 'Jeferson Yan Silva de Freitas',
     statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 99188-9103',
-    bairro: 'Boa Vista',
-    rawTurma: 'Ad.713-1 - Raphael Nonato,Epcar-707-1 - Dayana Silva',
-    dataMatricula: '01/08/2026',
-    dataInicio: '08/08/2026',
-    ultimaPresenca: '17/10/2026',
-    ultimaFalta: '10/10/2026',
-    faltasTotais: 0,
+    telefonePrincipal: '(81) 98903-8321',
+    bairro: 'Brejo da Madre de Deus',
+    rawTurma: 'Pm.707-1 - Raphael Nonato',
+    dataMatricula: '17/07/2026',
+    dataInicio: '18/07/2026',
+    ultimaPresenca: undefined, // NUNCA COMPARECEU
+    ultimaFalta: '18/07/2026',
+    faltasTotais: 10,
     origemContratoF10: 'Venda',
-    valorTotal: 'R$ 4.085,00',
-    valorPago: 'R$ 640,00',
-    valorAberto: 'R$ 3.445,00',
-    valorVencido: 'R$ 265,00',
-    parcelasVencidas: 1,
-    parcelasAberto: 13,
-    smartAluno: 'Não Cadastrado',
-    smartTitular: 'Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/DR4ZPA',
-    idade: 13,
+    valorTotal: 'R$ 1.770,00',
+    valorPago: 'R$ 265,00',
+    valorAberto: 'R$ 1.505,00',
+    parcelasAberto: 7,
+    smartAluno: 'Acesso em 14/09/26',
+    smartTitular: 'Não Cadastrado',
+    linkPagamentoF10: 'https://r.f10.com.br/RJYHV1',
+    idade: 28,
+    sexo: 'M'
+  }),
+  createMatricula({
+    contrato: '2.369',
+    alunoNome: 'Fabio Daniel dos Santos',
+    statusContrato: 'Aguardando',
+    telefonePrincipal: '(81) 99290-3347',
+    bairro: 'Indianópolis',
+    rawTurma: 'Pm.707-1 - Raphael Nonato',
+    dataMatricula: '15/08/2026',
+    dataInicio: '22/08/2026',
+    ultimaPresenca: undefined, // NUNCA COMPARECEU
+    faltasTotais: 8,
+    origemContratoF10: 'Venda',
+    valorTotal: 'R$ 2.370,00',
+    valorPago: 'R$ 515,00',
+    valorAberto: 'R$ 1.855,00',
+    parcelasAberto: 7,
+    smartAluno: 'Cadastrado',
+    smartTitular: 'Não Cadastrado',
+    linkPagamentoF10: 'https://r.f10.com.br/80YWTZ',
+    idade: 25,
     sexo: 'M'
   }),
 
-  // 2. Q1_OVERDUE_ABSENT: Inadimplente Ausente / Não Frequente (Parcelas vencidas e sem frequência recente)
+  // 4. Inadimplente Ausente
   createMatricula({
     contrato: '2.329',
     alunoNome: 'Fagner Henrique Pereira da Silva',
@@ -199,6 +249,7 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     rawTurma: 'Ad.713-1 - Raphael Nonato,Epcar-707-1 - Dayana Silva',
     dataMatricula: '03/07/2026',
     dataInicio: '04/07/2026',
+    ultimaPresenca: undefined, // NUNCA COMPARECEU
     ultimaFalta: '18/07/2026',
     faltasTotais: 10,
     origemContratoF10: 'Venda',
@@ -214,79 +265,8 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     idade: 1,
     sexo: 'M'
   }),
-  createMatricula({
-    contrato: '2.330',
-    alunoNome: 'Leticia Siqueira de Almeida Lacerda',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 99562-5024',
-    bairro: 'Panelas',
-    rawTurma: 'Epcar-707-1 - Dayana Silva',
-    dataMatricula: '03/07/2026',
-    dataInicio: '04/07/2026',
-    ultimaFalta: '15/08/2026',
-    faltasTotais: 8,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 3.500,00',
-    valorPago: 'R$ 280,00',
-    valorAberto: 'R$ 3.220,00',
-    valorVencido: 'R$ 690,00',
-    parcelasVencidas: 3,
-    parcelasAberto: 14,
-    smartAluno: 'Cadastrado',
-    smartTitular: 'Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/HCTYNT',
-    idade: 14,
-    sexo: 'F'
-  }),
 
-  // 3. Q2: Risco Crítico de Evasão (Faltas >= 3, Ativo, Sem atraso financeiro vencido)
-  createMatricula({
-    contrato: '2.333',
-    alunoNome: 'Darfiny Josiane da Silva',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 98999-5595',
-    bairro: 'Centro',
-    rawTurma: 'Pm.35-1 - Raphael Nonato',
-    dataMatricula: '08/07/2026',
-    dataInicio: '09/07/2026',
-    ultimaPresenca: '13/08/2026',
-    ultimaFalta: '21/09/2026',
-    faltasTotais: 7,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 3.975,00',
-    valorPago: 'R$ 265,00',
-    valorAberto: 'R$ 3.710,00',
-    parcelasAberto: 14,
-    smartAluno: 'Cadastrado',
-    smartTitular: 'Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/NFQ379',
-    idade: 17,
-    sexo: 'F'
-  }),
-  createMatricula({
-    contrato: '2.346',
-    alunoNome: 'Jeferson Yan Silva de Freitas',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 98903-8321',
-    bairro: 'Brejo da Madre de Deus',
-    rawTurma: 'Pm.707-1 - Raphael Nonato',
-    dataMatricula: '17/07/2026',
-    dataInicio: '18/07/2026',
-    ultimaFalta: '18/07/2026',
-    faltasTotais: 10,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 1.770,00',
-    valorPago: 'R$ 265,00',
-    valorAberto: 'R$ 1.505,00',
-    parcelasAberto: 7,
-    smartAluno: 'Acesso em 14/09/26',
-    smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/RJYHV1',
-    idade: 28,
-    sexo: 'M'
-  }),
-
-  // 4. Q3: Aguardando Cancelamento (Retenção)
+  // 5. Q3: Aguardando Cancelamento (Retenção)
   createMatricula({
     contrato: '2.355',
     alunoNome: 'Gael Oliveira Santos',
@@ -296,6 +276,7 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     rawTurma: 'Mirim.7- Manhã - Raphael Nonato',
     dataMatricula: '29/07/2026',
     dataInicio: '01/08/2026',
+    ultimaPresenca: undefined, // Nunca veio
     ultimaFalta: '26/09/2026',
     faltasTotais: 3,
     origemContratoF10: 'A.V',
@@ -318,6 +299,7 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     rawTurma: 'Mirim.7- Manhã - Raphael Nonato,Mirim.7- Tarde - Raphael Nonato',
     dataMatricula: '15/09/2026',
     dataInicio: '19/09/2026',
+    ultimaPresenca: undefined,
     faltasTotais: 5,
     origemContratoF10: 'A.V',
     valorTotal: 'R$ 3.180,00',
@@ -329,30 +311,8 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     idade: 8,
     sexo: 'M'
   }),
-  createMatricula({
-    contrato: '2.344',
-    alunoNome: 'Henrique Bruno Basilio Alves',
-    statusContrato: 'Aguardando',
-    telefonePrincipal: '(81) 99678-8131',
-    bairro: 'Cidade Alta',
-    rawTurma: 'Pm.713-1 - Raphael Nonato',
-    dataMatricula: '16/07/2026',
-    dataInicio: '18/07/2026',
-    ultimaFalta: '10/10/2026',
-    faltasTotais: 9,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 1.875,00',
-    valorPago: 'R$ 265,00',
-    valorAberto: 'R$ 1.610,00',
-    parcelasAberto: 7,
-    smartAluno: 'Cadastrado',
-    smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/QVD5IQ',
-    idade: 25,
-    sexo: 'M'
-  }),
 
-  // 5. Q4: Regular / Saudável
+  // 6. Regular
   createMatricula({
     contrato: '2.415',
     alunoNome: 'Everly Beatriz de Almeida Carvalho',
@@ -363,6 +323,7 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     rawTurma: 'Mirim.35-3 - Raphael Nonato,Mirim.7- Manhã - Raphael Nonato',
     dataMatricula: '20/10/2026',
     dataInicio: '24/10/2026',
+    ultimaPresenca: '20/10/2026',
     faltasTotais: 0,
     origemContratoF10: 'A.V',
     valorTotal: 'R$ 3.180,00',
@@ -372,48 +333,6 @@ export const SAMPLE_F10_MATRICULAS: MatriculaAcademicaF10[] = [
     smartTitular: 'Não Cadastrado',
     linkPagamentoF10: 'https://r.f10.com.br/CWJ8XQ',
     idade: 11,
-    sexo: 'F'
-  }),
-  createMatricula({
-    contrato: '2.416',
-    alunoNome: 'Marcos Vinicius de Souza Jeferino',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 98188-9103',
-    bairro: 'Serras do Vale',
-    rawTurma: 'Mirim.707-1 - Raphael Nonato',
-    dataMatricula: '21/10/2026',
-    dataInicio: '31/10/2026',
-    faltasTotais: 0,
-    origemContratoF10: 'Venda',
-    valorTotal: 'R$ 3.870,00',
-    valorPago: 'R$ 690,00',
-    valorAberto: 'R$ 3.180,00',
-    parcelasAberto: 12,
-    smartAluno: 'Não Cadastrado',
-    smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/CBKZWO',
-    idade: 15,
-    sexo: 'M'
-  }),
-  createMatricula({
-    contrato: '2.414',
-    alunoNome: 'Diana Priscilla Silva Muniz',
-    statusContrato: 'Ativo',
-    telefonePrincipal: '(81) 99671-6787',
-    bairro: 'Rendeiras',
-    rawTurma: 'Mirim.7- Manhã - Raphael Nonato',
-    dataMatricula: '16/10/2026',
-    dataInicio: '17/10/2026',
-    ultimaPresenca: '17/10/2026',
-    faltasTotais: 0,
-    origemContratoF10: 'A.V',
-    valorTotal: 'R$ 3.180,00',
-    valorPago: 'R$ 3.180,00',
-    valorAberto: 'R$ 0,00',
-    smartAluno: 'Não Cadastrado',
-    smartTitular: 'Não Cadastrado',
-    linkPagamentoF10: 'https://r.f10.com.br/SHAVIM',
-    idade: 8,
     sexo: 'F'
   })
 ];

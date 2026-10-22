@@ -49,6 +49,7 @@ export async function fetchF10MatriculasFromSupabase(): Promise<SupabaseF10SyncR
       ultimaFalta: row.ultima_falta || undefined,
       faltasTotais: row.faltas_totais || 0,
       isNoShow: Boolean(row.is_no_show),
+      nuncaCompareceu: !row.ultima_presenca || Boolean(row.nunca_compareceu),
       origemContratoF10: row.origem_contrato_f10,
       regime: row.regime as any,
       proximoVencimento: row.proximo_vencimento || undefined,

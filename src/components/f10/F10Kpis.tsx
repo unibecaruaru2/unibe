@@ -107,10 +107,26 @@ export const F10Kpis: React.FC<F10KpisProps> = ({
           </div>
         </div>
         <div className="mt-3">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-black text-amber-800 dark:text-amber-200 tracking-tight">
               {kpis.alunosRiscoEvasao} alunos
             </span>
+            {kpis.totalNuncaCompareceram > 0 && (
+              <span 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectQuadrant && onSelectQuadrant(activeQuadrantFilter === 'NUNCA_COMPARECEU' ? 'TODOS' : 'NUNCA_COMPARECEU');
+                }}
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer border transition-colors ${
+                  activeQuadrantFilter === 'NUNCA_COMPARECEU'
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'text-amber-800 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 border-amber-300'
+                }`}
+                title="Clique para filtrar alunos que nunca vieram à aula"
+              >
+                ⚠️ {kpis.totalNuncaCompareceram} nunca vieram
+              </span>
+            )}
             {kpis.alunosNoShow > 0 && (
               <span className="text-[10px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-950/80 px-1.5 py-0.5 rounded">
                 {kpis.alunosNoShow} No-Show

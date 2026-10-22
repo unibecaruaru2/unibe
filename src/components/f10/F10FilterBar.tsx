@@ -2,7 +2,7 @@ import React from 'react';
 import { Search, Filter, X, GraduationCap, AlertTriangle, ShieldAlert, UserX, CheckCircle, Smartphone, UserMinus, CalendarCheck2 } from 'lucide-react';
 import { QuadranteRisco, RegimeFinanceiro } from '../../types/f10';
 
-export type FilterQuadrantOption = 'TODOS' | 'INADIMPLENTES_TODOS' | QuadranteRisco | 'SEM_APP';
+export type FilterQuadrantOption = 'TODOS' | 'INADIMPLENTES_TODOS' | QuadranteRisco | 'SEM_APP' | 'NUNCA_COMPARECEU';
 
 interface F10FilterBarProps {
   searchQuery: string;
@@ -40,6 +40,7 @@ export const F10FilterBar: React.FC<F10FilterBarProps> = ({
     { id: 'INADIMPLENTES_TODOS', label: '🚨 Todos Inadimplentes (Geral)', icon: ShieldAlert, color: 'text-rose-600' },
     { id: 'Q1_OVERDUE_ATTENDING', label: 'Inadimplente em Aula', icon: CalendarCheck2, color: 'text-emerald-600' },
     { id: 'Q1_OVERDUE_ABSENT', label: 'Inadimplente Ausente', icon: UserMinus, color: 'text-rose-600' },
+    { id: 'NUNCA_COMPARECEU', label: '⚠️ Nunca Compareceu (Zero Presenças)', icon: AlertTriangle, color: 'text-amber-600' },
     { id: 'Q2_ABSENT_CHURN', label: 'Risco Evasão (≥3 Faltas)', icon: AlertTriangle, color: 'text-amber-600' },
     { id: 'Q3_WAITING_CANCEL', label: 'Aguardando Cancelamento', icon: UserX, color: 'text-purple-600' },
     { id: 'Q4_REGULAR', label: 'Regular / Saudável', icon: CheckCircle, color: 'text-emerald-600' },

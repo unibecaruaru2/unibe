@@ -96,32 +96,39 @@ export function sanitizePhoneToWhatsApp(phone: string): { formatted: string; cle
   return { formatted, cleanDigits: fullDigits, waUrl };
 }
 
-interface RawLineItem {
-  y: number;
-  x: number;
+export interface ExtractedPageItem {
   text: string;
+  x: number;
+  y: number;
+  width?: number;
+}
+
+export interface ExtractedPageLine {
+  y: number;
+  fullText: string;
+  items: ExtractedPageItem[];
 }
 
 /**
- * Extrai texto posicional ordenado de uma página do PDF
+ * Extrai linhas estruturadas preservando itens posicionais com X e Y exatos
  */
-async function extractLinesFromPage(page: any): Promise<string[]> {
+async function extractDetailedLinesFromPage(page: any): Promise<ExtractedPageLine[]> {
   const textContent = await page.getTextContent();
-  const items: RawLineItem[] = [];
+  const items: ExtractedPageItem[] = [];
 
   for (const item of textContent.items) {
     if ('str' in item && item.str.trim()) {
       items.push({
-        text: item.str,
+        text: item.str.trim(),
         x: item.transform[4],
-        y: Math.round(item.transform[5])
+        y: Math.round(item.transform[5]),
+        width: item.width
       });
     }
   }
 
-  items.sort((a, b) => b.y - a.y || a.x - b.x);
-
-  const linesMap: { [yKey: number]: RawLineItem[] } = {};
+  // Agrupa itens em linhas com tolerância Y <= 4
+  const linesMap: { [yKey: number]: ExtractedPageItem[] } = {};
   for (const item of items) {
     let placed = false;
     for (const yKey of Object.keys(linesMap).map(Number)) {
@@ -137,17 +144,181 @@ async function extractLinesFromPage(page: any): Promise<string[]> {
   }
 
   const sortedYKeys = Object.keys(linesMap).map(Number).sort((a, b) => b - a);
-  const resultLines: string[] = [];
+  const resultLines: ExtractedPageLine[] = [];
 
   for (const y of sortedYKeys) {
     const lineItems = linesMap[y].sort((a, b) => a.x - b.x);
     const lineText = lineItems.map(i => i.text).join('   ');
     if (lineText.trim()) {
-      resultLines.push(lineText.trim());
+      resultLines.push({
+        y,
+        fullText: lineText.trim(),
+        items: lineItems
+      });
     }
   }
 
   return resultLines;
+}
+
+interface Page1HeaderCols {
+  xStatus?: number;
+  xInicio?: number;
+  xFalta?: number;
+  xPresenca?: number;
+  xMatricula?: number;
+  xVencimento?: number;
+  xTurmas?: number;
+}
+
+/**
+ * Detecta as posições X das colunas do cabeçalho da Página 1 do F10
+ */
+function detectHeaderColumns(lines: ExtractedPageLine[]): Page1HeaderCols {
+  const cols: Page1HeaderCols = {};
+
+  // Analisa as primeiras 5 linhas que compõem o cabeçalho
+  const headerLines = lines.slice(0, 5);
+  for (const hl of headerLines) {
+    for (const it of hl.items) {
+      const txt = it.text.toLowerCase();
+      if (txt === 'status') {
+        cols.xStatus = it.x;
+      } else if (txt.includes('início') || txt.includes('inicio')) {
+        cols.xInicio = it.x;
+      } else if (txt.includes('falta')) {
+        cols.xFalta = it.x;
+      } else if (txt.includes('presença') || txt.includes('presenca')) {
+        cols.xPresenca = it.x;
+      } else if (txt.includes('matrícula') || txt.includes('matricula')) {
+        cols.xMatricula = it.x;
+      } else if (txt.includes('vencimento')) {
+        cols.xVencimento = it.x;
+      } else if (txt.includes('turmas') || txt.includes('curso')) {
+        cols.xTurmas = it.x;
+      }
+    }
+  }
+
+  return cols;
+}
+
+/**
+ * Resolve as datas da linha do aluno associando com precisão de coordenadas X
+ * Garante que Última Presença, Data Matrícula, Início, Falta e Vencimento nunca se invertam!
+ */
+export function resolveRowDates(
+  line: ExtractedPageLine,
+  headerCols: Page1HeaderCols
+): {
+  dataInicio?: string;
+  ultimaFalta?: string;
+  ultimaPresenca?: string;
+  dataMatricula: string;
+  proximoVencimento?: string;
+} {
+  // Procura todos os itens da linha que são datas (DD/MM/YYYY)
+  const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+  const dateItems: Array<{ date: string; x: number }> = [];
+
+  for (const it of line.items) {
+    const match = it.text.match(/\b\d{2}\/\d{2}\/\d{4}\b/);
+    if (match) {
+      dateItems.push({
+        date: match[0],
+        x: it.x
+      });
+    }
+  }
+
+  let dataInicio: string | undefined;
+  let ultimaFalta: string | undefined;
+  let ultimaPresenca: string | undefined;
+  let dataMatricula = 'Não informada';
+  let proximoVencimento: string | undefined;
+
+  // Se detectamos pelo menos xPresenca ou xMatricula no cabeçalho
+  if (headerCols.xMatricula) {
+    const xPres = headerCols.xPresenca || (headerCols.xMatricula - 50);
+    const xMat = headerCols.xMatricula;
+    const xFalta = headerCols.xFalta || (xPres - 40);
+    const xIni = headerCols.xInicio || (xFalta - 40);
+    const xVenc = headerCols.xVencimento || (xMat + 50);
+
+    const midFaltaPres = (xFalta + xPres) / 2;
+    const midPresMat = (xPres + xMat) / 2;
+    const midMatVenc = (xMat + xVenc) / 2;
+    const midIniFalta = (xIni + xFalta) / 2;
+
+    for (const d of dateItems) {
+      if (d.x < midIniFalta) {
+        dataInicio = d.date;
+      } else if (d.x >= midIniFalta && d.x < midFaltaPres) {
+        ultimaFalta = d.date;
+      } else if (d.x >= midFaltaPres && d.x < midPresMat) {
+        // Coluna de Última Presença!
+        ultimaPresenca = d.date;
+      } else if (d.x >= midPresMat && d.x < midMatVenc) {
+        // Coluna de Data da Matrícula!
+        dataMatricula = d.date;
+      } else if (d.x >= midMatVenc) {
+        // Coluna de Próximo Vencimento!
+        proximoVencimento = d.date;
+      }
+    }
+  } else {
+    // Fallback Proporcional: Se os cabeçalhos não tiverem sido encontrados
+    // Identifica o item de Status (ex: "Ativo" ou "Aguardando") e o início da turma
+    let xStatus = 120;
+    let xTurma = 350;
+
+    for (const it of line.items) {
+      if (/^(Ativo|Aguardando|Cancelado)$/i.test(it.text)) {
+        xStatus = it.x + (it.width || 30);
+      }
+      if (/(?:Mirim|Pm|Epcar|Ad|Curso)/i.test(it.text) && it.x > 250) {
+        xTurma = it.x;
+        break;
+      }
+    }
+
+    const range = Math.max(xTurma - xStatus, 150);
+
+    for (const d of dateItems) {
+      const pct = (d.x - xStatus) / range;
+      if (pct < 0.18) {
+        dataInicio = d.date;
+      } else if (pct >= 0.18 && pct < 0.38) {
+        ultimaFalta = d.date;
+      } else if (pct >= 0.38 && pct < 0.62) {
+        ultimaPresenca = d.date;
+      } else if (pct >= 0.62 && pct < 0.85) {
+        dataMatricula = d.date;
+      } else if (pct >= 0.85) {
+        proximoVencimento = d.date;
+      }
+    }
+  }
+
+  // Se por alguma razão dataMatricula não foi preenchida mas temos datas:
+  if (dataMatricula === 'Não informada' && dateItems.length > 0) {
+    // A data de matrícula no F10 nunca fica vazia: se temos apenas 1 data e ela não é presença, é a matrícula
+    if (dateItems.length === 1 && !ultimaPresenca) {
+      dataMatricula = dateItems[0].date;
+    } else {
+      // Se tiver mais datas, a penúltima ou última antes da turma é a matrícula
+      const sorted = [...dateItems].sort((a, b) => a.x - b.x);
+      dataMatricula = sorted[sorted.length - 1].date;
+    }
+  }
+
+  return {
+    dataInicio,
+    ultimaFalta,
+    ultimaPresenca,
+    dataMatricula,
+    proximoVencimento
+  };
 }
 
 /**
@@ -164,62 +335,61 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
       throw new Error('O arquivo PDF está vazio.');
     }
 
-    const pagesLines: string[][] = [];
+    const pagesDetailedLines: ExtractedPageLine[][] = [];
     for (let i = 1; i <= numPages; i++) {
       const page = await pdfDoc.getPage(i);
-      const lines = await extractLinesFromPage(page);
-      pagesLines.push(lines);
+      const detailedLines = await extractDetailedLinesFromPage(page);
+      pagesDetailedLines.push(detailedLines);
     }
 
     const matriculas: MatriculaAcademicaF10[] = [];
-    let periodoRef = 'Mês Vigente';
+    let periodoRef = 'Consolidado F10';
 
-    // Se o relatório tiver 3 páginas ou blocos de 3 páginas (1..3, 4..6, etc.)
+    // Se o relatório tiver blocos de 3 páginas (1..3, 4..6, etc.)
     const totalBlocks = Math.ceil(numPages / 3);
 
     for (let b = 0; b < totalBlocks; b++) {
-      const p1Lines = pagesLines[b * 3] || [];
-      const p2Lines = pagesLines[b * 3 + 1] || [];
-      const p3Lines = pagesLines[b * 3 + 2] || [];
+      const p1Lines = pagesDetailedLines[b * 3] || [];
+      const p2Lines = pagesDetailedLines[b * 3 + 1] || [];
+      const p3Lines = pagesDetailedLines[b * 3 + 2] || [];
+
+      // Detecta as colunas do cabeçalho da página 1
+      const headerCols = detectHeaderColumns(p1Lines);
 
       // Detecta período de referência
       for (const line of p1Lines) {
-        if (line.toLowerCase().includes('intervalo de')) {
-          const match = line.match(/intervalo de\s+([0-9\/\-]+(?:\s*a\s*[0-9\/\-]+)?)/i);
+        if (line.fullText.toLowerCase().includes('intervalo de')) {
+          const match = line.fullText.match(/intervalo de\s+([0-9\/\-]+(?:\s*a\s*[0-9\/\-]+)?)/i);
           if (match) periodoRef = match[0];
         }
       }
 
       // Regex para identificar linha de contrato
-      // Status pode ser Ativo, Aguardando, Cancelado, etc.
       const contractRegex = /^(\d{1,2}\.?\d{3})\s+(.+?)\s+(Ativo|Aguardando|Cancelado|Pendente|Inativo)/i;
 
       const parsedP1: any[] = [];
       for (const line of p1Lines) {
-        const match = line.match(contractRegex);
+        const match = line.fullText.match(contractRegex);
         if (match) {
           const contrato = match[1];
           const alunoNome = match[2].trim();
           const statusContrato = match[3];
 
-          const linkMatch = line.match(/https?:\/\/r\.f10\.com\.br\/[a-zA-Z0-9]+/i);
+          const linkMatch = line.fullText.match(/https?:\/\/r\.f10\.com\.br\/[a-zA-Z0-9]+/i);
           const linkPagamentoF10 = linkMatch ? linkMatch[0] : undefined;
 
           let tipo = 'Venda';
-          if (/\bS\.?A\.?V\b/i.test(line)) tipo = 'S.A.V';
-          else if (/\bA\.?V\b/i.test(line)) tipo = 'A.V';
-          else if (/\bBolsa\b/i.test(line)) tipo = 'Bolsa';
-          else if (/\bA\.C\b/i.test(line)) tipo = 'A.C';
-          else if (/\bVenda\b/i.test(line)) tipo = 'Venda';
+          if (/\bS\.?A\.?V\b/i.test(line.fullText)) tipo = 'S.A.V';
+          else if (/\bA\.?V\b/i.test(line.fullText)) tipo = 'A.V';
+          else if (/\bBolsa\b/i.test(line.fullText)) tipo = 'Bolsa';
+          else if (/\bA\.C\b/i.test(line.fullText)) tipo = 'A.C';
+          else if (/\bVenda\b/i.test(line.fullText)) tipo = 'Venda';
 
-          const dates = line.match(/\b\d{2}\/\d{2}\/\d{4}\b/g) || [];
-          const dataMatricula = dates.length > 0 ? dates[0] : 'Não informada';
-          const ultimaPresenca = dates.length > 2 ? dates[dates.length - 2] : undefined;
-          const ultimaFalta = dates.length > 3 ? dates[dates.length - 3] : undefined;
+          // Resolução ultra-precisa das datas com coordenadas X!
+          const datesResolved = resolveRowDates(line, headerCols);
 
           // Extrai parcelas vencidas e valor vencido se houver
-          // Padrão F10: "1   R$ 230,00   R$ 740,00   R$ 2.760,00   R$ 3.500,00"
-          const moneyMatches = line.match(/R\$\s*[\d\.\,]+/g) || [];
+          const moneyMatches = line.fullText.match(/R\$\s*[\d\.\,]+/g) || [];
           let valorVencido: string | undefined;
           let valorTotal: string | undefined;
           let valorPago: string | undefined;
@@ -239,7 +409,7 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
           }
 
           let parcVencidas = 0;
-          const parcVencMatch = line.match(/\s+(\d{1,2})\s+R\$\s*[\d\.\,]+/);
+          const parcVencMatch = line.fullText.match(/\s+(\d{1,2})\s+R\$\s*[\d\.\,]+/);
           if (parcVencMatch) {
             parcVencidas = parseInt(parcVencMatch[1], 10);
           }
@@ -247,8 +417,8 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
           // Smart Aluno e Smart Titular
           let smartAluno = 'Não Cadastrado';
           let smartTitular = 'Não Cadastrado';
-          if (line.includes('Cadastrado')) {
-            const smartParts = line.match(/(Não Cadastrado|Cadastrado|Instalado|Acesso em [0-9\/]+)/g) || [];
+          if (line.fullText.includes('Cadastrado') || line.fullText.includes('Instalado')) {
+            const smartParts = line.fullText.match(/(Não Cadastrado|Cadastrado|Instalado|Acesso em [0-9\/]+)/g) || [];
             if (smartParts.length >= 2) {
               smartAluno = smartParts[0] || 'Não Cadastrado';
               smartTitular = smartParts[1] || 'Não Cadastrado';
@@ -258,16 +428,18 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
           // Turmas
           let rawTurma = '';
           const turmaRegex = /((?:Mirim|Pm|Epcar|Ad|Curso)[\.\-\w\s]+?\s*-\s*[A-Za-z\s]+(?:,\s*(?:Mirim|Pm|Epcar|Ad|Curso)[\.\-\w\s]+?\s*-\s*[A-Za-z\s]+)*)/i;
-          const turmaMatch = line.match(turmaRegex);
+          const turmaMatch = line.fullText.match(turmaRegex);
           if (turmaMatch) rawTurma = turmaMatch[1].trim();
 
           parsedP1.push({
             contrato,
             alunoNome,
             statusContrato,
-            dataMatricula,
-            ultimaPresenca,
-            ultimaFalta,
+            dataMatricula: datesResolved.dataMatricula,
+            dataInicio: datesResolved.dataInicio,
+            ultimaPresenca: datesResolved.ultimaPresenca,
+            ultimaFalta: datesResolved.ultimaFalta,
+            proximoVencimento: datesResolved.proximoVencimento,
             origemContratoF10: tipo,
             rawTurma,
             valorTotal,
@@ -282,22 +454,22 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
         }
       }
 
-      // Processa Página 2 correspondente
+      // Processa Página 2 correspondente (Telefones, Idade, Faltas)
       const parsedP2: any[] = [];
       for (const line of p2Lines) {
-        const birthMatch = line.match(/\b(\d{2}\/\d{2}\/\d{4})\s+(\d{1,2})\s+([MF])/i);
+        const birthMatch = line.fullText.match(/\b(\d{2}\/\d{2}\/\d{4})\s+(\d{1,2})\s+([MF])/i);
         if (birthMatch) {
           const nascimento = birthMatch[1];
           const idade = parseInt(birthMatch[2], 10);
           const sexo = birthMatch[3];
 
-          const phoneMatches = line.match(/\(\d{2}\)\s*\d{4,5}\-?\d{4}/g) || [];
+          const phoneMatches = line.fullText.match(/\(\d{2}\)\s*\d{4,5}\-?\d{4}/g) || [];
           const celular = phoneMatches[1] || phoneMatches[0] || '';
           const fixo = phoneMatches[0] !== celular ? phoneMatches[0] : undefined;
 
           // Faltas (coluna Faltas antes de Cálculo Vencido)
           let faltas = 0;
-          const faltasMatch = line.match(/\s+(\d{1,2})\s+(?:R\$|\d)/);
+          const faltasMatch = line.fullText.match(/\s+(\d{1,2})\s+(?:R\$|\d)/);
           if (faltasMatch) {
             faltas = parseInt(faltasMatch[1], 10);
           }
@@ -316,8 +488,8 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
       // Processa Página 3 (Bairros)
       const parsedP3: string[] = [];
       for (const line of p3Lines) {
-        if (line.includes('Bairro Aluno') || line.includes('Termo de Uso')) continue;
-        const bClean = line.split('   ')[0]?.trim();
+        if (line.fullText.includes('Bairro Aluno') || line.fullText.includes('Termo de Uso')) continue;
+        const bClean = line.fullText.split('   ')[0]?.trim();
         if (bClean && bClean.length > 2 && !bClean.toLowerCase().includes('total')) {
           parsedP3.push(bClean);
         }
@@ -351,6 +523,7 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
         });
 
         const isNoShow = (p2.faltas || 0) >= 3 && !p1.ultimaPresenca;
+        const nuncaCompareceu = !p1.ultimaPresenca;
         const hasAppActive = (p1.smartAluno || '').includes('Cadastrado') || (p1.smartTitular || '').includes('Cadastrado');
 
         matriculas.push({
@@ -368,10 +541,12 @@ export async function parseF10ReportPdf(file: File | ArrayBuffer): Promise<F10Pa
           turmas: turmasParsed,
           turmasCanonicas,
           dataMatricula: p1.dataMatricula,
+          dataInicio: p1.dataInicio,
           ultimaPresenca: p1.ultimaPresenca,
           ultimaFalta: p1.ultimaFalta,
           faltasTotais: p2.faltas || 0,
           isNoShow,
+          nuncaCompareceu,
           origemContratoF10: p1.origemContratoF10,
           regime,
           valorTotal: p1.valorTotal,
