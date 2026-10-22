@@ -29,13 +29,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse
 }) => {
   const menuItems = [
-    { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard },
-    { id: 'attendance', label: 'Chamada de Sábado', icon: CalendarDays, badge: '4 Aulas' },
-    { id: 'students', label: 'Alunos & Matrículas', icon: Users },
-    { id: 'f10-academic', label: 'Prevenção & Evasão F10', icon: ShieldAlert, badge: 'Risco' },
-    { id: 'whatsapp', label: 'WhatsApp & Contatos', icon: MessageSquare },
-    { id: 'certificates', label: 'Certificação Oficial', icon: Award },
-    { id: 'settings', label: 'Configurações', icon: Settings },
+    { id: 'dashboard', label: 'Painel Executivo', icon: LayoutDashboard },
+    { id: 'students-hub', label: 'Alunos & Operação 360°', icon: Users, badge: 'Chamada & Cert' },
+    { id: 'f10-academic', label: 'Prevenção & Evasão F10', icon: ShieldAlert, badge: 'Risco BI' },
+    { id: 'settings', label: 'Configurações & Polo', icon: Settings },
   ];
 
   return (

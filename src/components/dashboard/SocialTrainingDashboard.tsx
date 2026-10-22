@@ -2,11 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Sidebar } from '../layout/Sidebar';
 import { Header } from '../layout/Header';
 import { DashboardView } from '../../views/DashboardView';
-import { AttendanceView } from '../../views/AttendanceView';
-import { StudentsView } from '../../views/StudentsView';
+import { StudentsHubView, StudentsHubTab } from '../../views/StudentsHubView';
 import { F10AcademicView } from '../../views/F10AcademicView';
-import { WhatsAppView } from '../../views/WhatsAppView';
-import { CertificatesView } from '../../views/CertificatesView';
 import { SettingsView } from '../../views/SettingsView';
 import { WhatsAppModal } from '../modals/WhatsAppModal';
 import { EnrollmentModal } from '../modals/EnrollmentModal';
@@ -31,6 +28,7 @@ import {
 export const SocialTrainingDashboard: React.FC = () => {
   // Navigation & UI States
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
+  const [hubActiveTab, setHubActiveTab] = useState<StudentsHubTab>('todos');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
       if (typeof window !== 'undefined' && window.innerWidth < 1024) return true;
@@ -62,10 +60,34 @@ export const SocialTrainingDashboard: React.FC = () => {
     });
   };
 
-  const handleNavigate = (path: string) => {
-    setCurrentRoute(path);
+  const handleNavigate = (path: string, initialTab?: StudentsHubTab) => {
+    if (path === 'attendance') {
+      setCurrentRoute('students-hub');
+      setHubActiveTab('chamada');
+    } else if (path === 'students') {
+      setCurrentRoute('students-hub');
+      setHubActiveTab('todos');
+    } else if (path === 'whatsapp') {
+      setCurrentRoute('students-hub');
+      setHubActiveTab('whatsapp');
+    } else if (path === 'certificates') {
+      setCurrentRoute('students-hub');
+      setHubActiveTab('certificados');
+    } else {
+      setCurrentRoute(path);
+      if (initialTab) {
+        setHubActiveTab(initialTab);
+      }
+    }
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setSidebarCollapsed(true);
+    }
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    if (query && currentRoute !== 'students-hub') {
+      setCurrentRoute('students-hub');
     }
   };
 
@@ -376,60 +398,43 @@ export const SocialTrainingDashboard: React.FC = () => {
           <DashboardView 
             students={students}
             kpis={dynamicKpis}
-            onNavigate={setCurrentRoute}
+            onNavigate={handleNavigate}
             onOpenEnrollment={() => setIsEnrollmentOpen(true)}
             selectedSaturday={selectedSaturday}
+            onToggleAttendance={handleToggleAttendance}
+            onToggleFeePayment={handleToggleFeePayment}
             onOpenWhatsApp={handleOpenWhatsApp}
             onOpenCertificate={handleOpenCertificate}
             onDeleteStudent={handleDeleteStudent}
           />
         );
 
+      case 'students-hub':
       case 'attendance':
+      case 'students':
+      case 'whatsapp':
+      case 'certificates':
         return (
-          <AttendanceView 
+          <StudentsHubView 
             students={students}
+            initialTab={hubActiveTab}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
             selectedSaturday={selectedSaturday}
             onSelectSaturday={setSelectedSaturday}
             availableSaturdays={availableSaturdays}
             onToggleAttendance={handleToggleAttendance}
+            onToggleFeePayment={handleToggleFeePayment}
             onOpenWhatsApp={handleOpenWhatsApp}
             onOpenCertificate={handleOpenCertificate}
-            onDeleteStudent={handleDeleteStudent}
-          />
-        );
-
-      case 'students':
-        return (
-          <StudentsView 
-            students={students}
             onOpenEnrollment={() => setIsEnrollmentOpen(true)}
-            onOpenWhatsApp={handleOpenWhatsApp}
-            onOpenCertificate={handleOpenCertificate}
             onDeleteStudent={handleDeleteStudent}
+            onUpdateWhatsAppStatus={handleUpdateWhatsAppStatus}
           />
         );
 
       case 'f10-academic':
         return <F10AcademicView />;
-
-      case 'whatsapp':
-        return (
-          <WhatsAppView 
-            students={students}
-            onOpenWhatsApp={handleOpenWhatsApp}
-            onUpdateStatus={handleUpdateWhatsAppStatus}
-          />
-        );
-
-      case 'certificates':
-        return (
-          <CertificatesView 
-            students={students}
-            onOpenCertificate={handleOpenCertificate}
-            onToggleFeePayment={handleToggleFeePayment}
-          />
-        );
 
       case 'settings':
         return <SettingsView />;
@@ -439,7 +444,7 @@ export const SocialTrainingDashboard: React.FC = () => {
           <DashboardView 
             students={students}
             kpis={dynamicKpis}
-            onNavigate={setCurrentRoute}
+            onNavigate={handleNavigate}
             onOpenEnrollment={() => setIsEnrollmentOpen(true)}
             selectedSaturday={selectedSaturday}
             onOpenWhatsApp={handleOpenWhatsApp}
@@ -474,7 +479,7 @@ export const SocialTrainingDashboard: React.FC = () => {
         {/* Top Header */}
         <Header 
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           onOpenEnrollmentModal={() => setIsEnrollmentOpen(true)}
           onToggleSidebar={toggleSidebar}
           isSidebarCollapsed={sidebarCollapsed}
